@@ -1,0 +1,13 @@
+title = "Consulta Fácil"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "chave-dados-consulta-facil"
+description = "Chave de dados ou de índice do Consulta Fácil"
+regex = '''CF_(CHAVES_DADOS|CHAVE_INDICE)\s*[=:]\s*["']?[0-9]:?[A-Za-z0-9+/]{40,}={0,2}'''
+
+[allowlist]
+description = "Valores fictícios de CI e testes"
+paths = ['''^\.github/workflows/ci\.yml$''', '''^tests/''']

@@ -1,0 +1,3 @@
+# Sistema de uso restrito: nenhum conteúdo para indexação ou treinamento de IA.
+User-agent: *
+Disallow: /
