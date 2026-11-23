@@ -1,0 +1,13 @@
+# Banco local para desenvolvimento. Não use estas credenciais fora da sua máquina.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: consultafacil
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - dados:/var/lib/postgresql/data
+volumes:
+  dados:

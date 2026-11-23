@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: consultafacil_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Valores só de CI, sem relação com qualquer ambiente real.
+      DATABASE_URL_ADMIN: postgres://postgres:postgres@localhost:5432/consultafacil_test
+      DATABASE_URL: postgres://cf_app:senha-de-ci-apenas-para-testes-0001@localhost:5432/consultafacil_test
+      CF_APP_DB_PASSWORD: senha-de-ci-apenas-para-testes-0001
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Instalar dependências exatamente como no lockfile
+        run: npm ci --ignore-scripts
+      - name: Auditoria de dependências (vulnerabilidades altas bloqueiam)
+        run: npm audit --audit-level=high --omit=dev
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Migrações
+        run: npm run db:migrate
+      - name: Senha do papel da aplicação
+        run: npm run db:app-password
+      - name: Testes (unidade e isolamento entre municípios)
+        run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          CF_CHAVES_DADOS: "1:AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+          CF_CHAVE_DADOS_ATIVA: "1"
+          CF_CHAVE_INDICE: "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk="
+
+  segredos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Procurar segredos no histórico (gitleaks)
+        run: |
+          set -euo pipefail
+          VERSAO=8.24.3
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${VERSAO}/gitleaks_${VERSAO}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tgz gitleaks
+          ./gitleaks git --redact --exit-code 1 --config .gitleaks.toml .

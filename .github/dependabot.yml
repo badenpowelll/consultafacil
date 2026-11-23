@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Pacotes recém-publicados são o vetor preferido de ataques de cadeia de suprimentos:
+    # esperar alguns dias dá tempo para versões maliciosas serem detectadas e removidas.
+    cooldown:
+      default-days: 7
+    groups:
+      desenvolvimento:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
