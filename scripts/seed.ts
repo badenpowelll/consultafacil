@@ -63,11 +63,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((erro: unknown) => {
-  // Este script manipula segredos (senha e chaves): nunca registra a mensagem do erro, que pode
-  // carregar valores. Só o código SQLSTATE ou o nome do erro.
-  const codigo = (erro as { code?: unknown })?.code;
-  const nome = erro instanceof Error ? erro.name : "erro";
-  console.error(`falhou (${typeof codigo === "string" ? codigo : nome}); confira as variáveis de ambiente`);
+main().catch(() => {
+  // Este script manipula segredos (senha e chaves): nenhum dado do erro vai para o log, porque
+  // a mensagem ou os campos de um erro do driver podem carregar valores. Para depurar, rode
+  // localmente com dados fictícios.
+  console.error("falhou; confira as variáveis de ambiente e a conexão com o banco");
   process.exit(1);
 });
