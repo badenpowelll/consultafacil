@@ -17,7 +17,8 @@
     "test:integration": "vitest run tests/integration",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:app-password": "tsx scripts/set-app-password.ts",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "worker": "tsx scripts/worker.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.2",
@@ -26,6 +27,7 @@
     "pg": "8.23.1",
     "react": "19.1.10",
     "react-dom": "19.1.10",
+    "tsx": "4.23.15",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -36,7 +38,6 @@
     "@types/react-dom": "19.3.0",
     "eslint": "9.39.5",
     "eslint-config-next": "15.5.29",
-    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "3.2.7"
   },
