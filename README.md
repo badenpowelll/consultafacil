@@ -37,7 +37,8 @@ npm run lint && npm run typecheck && npm test && npm run build
 | `src/lib/auth/` | sessão, login, autorização |
 | `src/lib/security/` | cifra de campo, índice cego, senhas, TOTP, tokens |
 | `src/middleware.ts` | CSP com nonce, município pelo subdomínio |
-| `docs/seguranca/` | política de segurança da informação |
+| `src/lib/http/`, `src/lib/exportacao/`, `src/lib/arquivos/` | respostas projetadas, exportação mascarada, upload seguro |
+| `docs/seguranca/` | política de segurança da informação e matriz de barreiras contra vazamento |
 | `docs/arquitetura.md` | decisões de arquitetura |
 
 ## Infraestrutura

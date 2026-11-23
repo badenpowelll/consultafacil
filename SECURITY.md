@@ -16,3 +16,4 @@ Resumo; o detalhe está em [`docs/seguranca/politica-seguranca-informacao.md`](d
 - CPF, CNS e segredos de MFA cifrados (AES-256-GCM) com índice cego para busca.
 - Auditoria somente inserção, sem dado pessoal em claro.
 - CSP com nonce e cabeçalhos de segurança; CodeQL, gitleaks, `npm audit` e Dependabot.
+- Barreiras contra vazamento em cada caminho de saída (API, erros, logs, exportações, uploads, links, cache): ver [`docs/seguranca/matriz-vazamento.md`](docs/seguranca/matriz-vazamento.md).
