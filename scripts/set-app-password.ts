@@ -3,11 +3,17 @@
  */
 import { Client } from "pg";
 
+/** Encerra com uma mensagem fixa (nunca com valores vindos do ambiente). */
+function parar(mensagem: string): never {
+  console.error(mensagem);
+  process.exit(1);
+}
+
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL_ADMIN;
   const senha = process.env.CF_APP_DB_PASSWORD;
-  if (!url) throw new Error("DATABASE_URL_ADMIN não definida");
-  if (!senha || senha.length < 24) throw new Error("CF_APP_DB_PASSWORD ausente ou com menos de 24 caracteres");
+  if (!url) parar("DATABASE_URL_ADMIN não definida");
+  if (!senha || senha.length < 24) parar("CF_APP_DB_PASSWORD ausente ou com menos de 24 caracteres");
 
   const client = new Client({ connectionString: url });
   await client.connect();
@@ -22,6 +28,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((erro: unknown) => {
-  console.error(erro instanceof Error ? erro.message : erro);
+  // Este script manipula segredos (senha e chaves): nunca registra a mensagem do erro, que pode
+  // carregar valores. Só o código SQLSTATE ou o nome do erro.
+  const codigo = (erro as { code?: unknown })?.code;
+  const nome = erro instanceof Error ? erro.name : "erro";
+  console.error(`falhou (${typeof codigo === "string" ? codigo : nome}); confira as variáveis de ambiente`);
   process.exit(1);
 });

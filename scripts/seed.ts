@@ -9,14 +9,20 @@ import { gerarHashSenha } from "@/lib/security/password";
 
 const CPF_FICTICIO = "52998224725";
 
+/** Encerra com uma mensagem fixa (nunca com valores vindos do ambiente). */
+function parar(mensagem: string): never {
+  console.error(mensagem);
+  process.exit(1);
+}
+
 async function main(): Promise<void> {
   if (process.env.NODE_ENV === "production" || process.env.CF_AMBIENTE === "producao") {
-    throw new Error("Seed de dados fictícios não roda em produção");
+    parar("Seed de dados fictícios não roda em produção");
   }
   const url = process.env.DATABASE_URL_ADMIN;
   const senha = process.env.CF_SEED_SENHA;
-  if (!url) throw new Error("DATABASE_URL_ADMIN não definida");
-  if (!senha) throw new Error("CF_SEED_SENHA não definida");
+  if (!url) parar("DATABASE_URL_ADMIN não definida");
+  if (!senha) parar("CF_SEED_SENHA não definida");
 
   const db = new Client({ connectionString: url });
   await db.connect();
@@ -58,6 +64,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((erro: unknown) => {
-  console.error(erro instanceof Error ? erro.message : erro);
+  // Este script manipula segredos (senha e chaves): nunca registra a mensagem do erro, que pode
+  // carregar valores. Só o código SQLSTATE ou o nome do erro.
+  const codigo = (erro as { code?: unknown })?.code;
+  const nome = erro instanceof Error ? erro.name : "erro";
+  console.error(`falhou (${typeof codigo === "string" ? codigo : nome}); confira as variáveis de ambiente`);
   process.exit(1);
 });
