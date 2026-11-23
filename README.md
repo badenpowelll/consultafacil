@@ -42,7 +42,7 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 ## Infraestrutura
 
-Produção inteira no Railway (aplicação, worker e Postgres na mesma região). Vercel só para previews com dados fictícios.
+Produção inteira no Railway (aplicação, worker e Postgres na mesma região), descrita em `.railway/railway.ts` e publicada automaticamente a cada push em `main` com o CI verde. Configuração inicial e operação em [`docs/deploy-railway.md`](docs/deploy-railway.md). Vercel só para previews com dados fictícios.
 
 ## Segurança
 

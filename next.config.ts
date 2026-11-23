@@ -16,7 +16,6 @@ const cabecalhos = [
 const config: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  output: "standalone",
   async headers() {
     return [{ source: "/:path*", headers: cabecalhos }];
   },
