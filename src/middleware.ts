@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { slugDoHost } from "@/lib/web/municipio-host";
 
 /**
  * 1. Remove cabeçalhos internos que um cliente tente forjar (x-cf-*).
  * 2. Resolve o município pelo subdomínio e repassa em x-cf-municipio (só o slug; o id
  *    é buscado no banco e a sessão é conferida no servidor).
  * 3. Monta a CSP com nonce por requisição: nenhum script inline sem nonce executa.
+ * 4. Proíbe cache de qualquer resposta dinâmica: páginas e APIs carregam dados pessoais e
+ *    não podem ficar em proxy, CDN, cache do navegador nem no histórico de "voltar".
  */
-const SLUG = /^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?$/;
-
 export function middleware(req: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
   const cabecalhos = new Headers(req.headers);
@@ -16,11 +17,8 @@ export function middleware(req: NextRequest) {
   }
 
   const base = (process.env.CF_DOMINIO_BASE ?? "localhost").toLowerCase();
-  const host = (req.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "");
-  if (host.endsWith(`.${base}`)) {
-    const slug = host.slice(0, -(base.length + 1));
-    if (SLUG.test(slug)) cabecalhos.set("x-cf-municipio", slug);
-  }
+  const slug = slugDoHost(req.headers.get("host"), base);
+  if (slug) cabecalhos.set("x-cf-municipio", slug);
 
   const dev = process.env.NODE_ENV !== "production";
   const csp = [
@@ -34,13 +32,17 @@ export function middleware(req: NextRequest) {
     "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    // Em *.localhost sem HTTPS, forçar https quebraria CSS e scripts.
+    ...(base === "localhost" ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
   cabecalhos.set("x-cf-nonce", nonce);
   cabecalhos.set("content-security-policy", csp);
 
   const resposta = NextResponse.next({ request: { headers: cabecalhos } });
   resposta.headers.set("Content-Security-Policy", csp);
+  resposta.headers.set("Cache-Control", "no-store, private, max-age=0");
+  resposta.headers.set("Pragma", "no-cache");
+  resposta.headers.set("Vary", "Cookie");
   return resposta;
 }
 

@@ -13,8 +13,8 @@ const REPOSITORIO = "badenpowelll/consultafacil";
 const RAMO = "main";
 
 /**
- * O worker de e-mail (`npm run worker`) chega com o incremento 2 e, em produção, só sobe com o
- * Resend configurado. Troque para true quando os dois estiverem prontos.
+ * O worker de e-mail (`npm run worker`) só sobe em produção com o Resend configurado.
+ * Troque para true quando a conta e o domínio do remetente estiverem prontos.
  */
 const COM_WORKER = false;
 

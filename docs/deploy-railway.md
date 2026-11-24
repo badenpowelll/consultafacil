@@ -8,7 +8,7 @@ A infraestrutura de produção está descrita em [`.railway/railway.ts`](../.rai
 |---|---|
 | `postgres` | banco de dados (rede privada do Railway, sem porta pública necessária) |
 | `site` | Next.js (`next start`), com verificação de saúde em `/api/health` |
-| `worker` | e-mails de aviso (`npm run worker`). **Desligado** até o incremento 2 estar em `main` e o Resend configurado: troque `COM_WORKER` para `true` no arquivo |
+| `worker` | e-mails de aviso (`npm run worker`). **Desligado** até o Resend ser configurado (em produção ele não sobe sem e-mail de verdade): troque `COM_WORKER` para `true` no arquivo |
 
 Em cada deploy do `site`:
 
@@ -73,5 +73,5 @@ Ao salvar, o Railway faz um novo deploy.
 
 - **Mudar a infraestrutura:** edite `.railway/railway.ts`, abra um PR e, depois do merge, rode `railway config plan` e `railway config apply`.
 - **Trocar a senha de `cf_app`** (semestral ou em incidente): troque `CF_APP_DB_PASSWORD` no painel. O pré-deploy aplica a senha nova e `DATABASE_URL` acompanha pela referência.
-- **Ligar o worker:** com o incremento 2 em `main` e a conta do Resend criada, troque `COM_WORKER` para `true`, aplique, e preencha `RESEND_API_KEY` e `CF_EMAIL_REMETENTE` no serviço `worker`.
+- **Ligar o worker:** com a conta do Resend criada e o domínio do remetente verificado, troque `COM_WORKER` para `true`, aplique, e preencha `RESEND_API_KEY` e `CF_EMAIL_REMETENTE` no serviço `worker`.
 - **Reverter uma versão:** painel → `site` → Deployments → versão anterior → Redeploy. Migrações não voltam sozinhas: corrija com uma migração nova.

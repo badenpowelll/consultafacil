@@ -1,8 +1,11 @@
 import type { Conexao } from "@/lib/db/pool";
+import { pareceSensivel } from "@/lib/security/redacao";
 
 /**
  * Registro de auditoria (somente inserção). Os detalhes passam por um filtro que descarta
  * qualquer chave com cara de dado pessoal, para que a auditoria não vire um vazamento.
+ * Valores também são conferidos: um CPF, e-mail ou token dentro de uma chave inocente
+ * ("referencia": "529.982.247-25") é descartado.
  */
 export interface EventoAuditoria {
   acao: string; // ex.: "agenda.marcar", "perfil.alterar"
@@ -19,7 +22,7 @@ export function filtrarDetalhes(detalhes: EventoAuditoria["detalhes"]): Record<s
   const saida: Record<string, string | number | boolean | null> = {};
   for (const [chave, valor] of Object.entries(detalhes ?? {})) {
     if (CHAVES_PROIBIDAS.test(chave)) continue;
-    if (typeof valor === "string" && valor.length > 200) continue;
+    if (typeof valor === "string" && (valor.length > 200 || pareceSensivel(valor))) continue;
     saida[chave] = valor;
   }
   return saida;

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
+import { municipioAtual, sessaoAtual } from "@/lib/web/requisicao";
+import { comMunicipio } from "@/lib/db/contexto";
 
 // A CSP usa nonce por requisição; páginas estáticas não recebem o nonce, então tudo é dinâmico.
 export const dynamic = "force-dynamic";
@@ -10,10 +13,46 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default async function Layout({ children }: { children: ReactNode }) {
+  const municipio = await municipioAtual();
+  const sessao = municipio ? await sessaoAtual() : null;
+  // Só mostra o menu da equipe para quem tem vínculo de equipe ou gestão neste município.
+  const daEquipe =
+    sessao?.tenantId === municipio?.id && municipio && sessao
+      ? await comMunicipio({ tenantId: municipio.id, contaId: sessao.contaId }, async (tx) =>
+          (await tx.query("SELECT 1 FROM app.vinculo WHERE conta_id = app.conta_atual() AND papel IN ('gestor', 'equipe') AND estado = 'ativo'")).rowCount! > 0,
+        )
+      : false;
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <a className="pular" href="#conteudo">Pular para o conteúdo</a>
+        <header className="topo">
+          <div className="faixa">
+            <strong>Consulta Fácil{municipio ? ` · ${municipio.nome}` : ""}</strong>
+            {municipio && (
+              <nav aria-label="Principal">
+                {sessao ? (
+                  <>
+                    <a href="/minhas-consultas">Minhas consultas</a>
+                    <a href="/marcar">Marcar consulta</a>
+                    {daEquipe && <a href="/equipe">Equipe</a>}
+                    <form action="/sair" method="post">
+                      <button className="secundario" type="submit">Sair</button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <a href="/entrar">Entrar</a>
+                    <a href="/cadastro">Criar cadastro</a>
+                  </>
+                )}
+              </nav>
+            )}
+          </div>
+        </header>
+        <main id="conteudo">{children}</main>
+      </body>
     </html>
   );
 }
