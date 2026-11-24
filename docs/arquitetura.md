@@ -35,6 +35,14 @@ Sessão → município escolhido (precisa coincidir com o subdomínio) → vínc
 - **Ausência do profissional.** Bloqueia as vagas livres da unidade no período e põe as consultas em "aguardando remanejamento": elas continuam valendo até o paciente escolher outro horário ou a unidade agir. Silêncio nunca cancela consulta.
 - **E-mails.** As operações gravam na fila `notificacao` só identificadores. O worker (`npm run worker`) reserva lotes com `SKIP LOCKED`, busca o endereço cifrado por uma função própria, envia por API HTTPS e tenta de novo com espera crescente (até 5 vezes).
 
+## Comprovante de agendamento
+
+O cidadão baixa o comprovante em PDF em "Minhas consultas"; a equipe com permissão de ver a agenda da unidade também emite, para imprimir na recepção. O PDF traz um código de validação e um QR code que levam à página pública `/validar/<código>` no subdomínio do município.
+
+- O código é um HMAC do id da consulta com a chave do índice cego: a segunda via sai igual, não dá para adivinhar e não revela o id. O banco guarda só o SHA-256 dele (`app.comprovante`, somente inserção, RLS forçado).
+- A validação pública roda pela função `app.comprovante_validar`, só no município de origem, com limite de 60 consultas por hora por IP, e mostra a situação atual, data, unidade, profissional e as iniciais do paciente. Nome completo, CPF e contato não aparecem.
+- Os metadados do PDF não têm autor nem assunto. A logomarca do município entra no lugar da marca genérica quando o envio de logo existir.
+
 ## Fora do piloto
 
 Prescrição, atestado com CID-10 e envio por WhatsApp ficam para a fase clínica, conforme o plano v2.
