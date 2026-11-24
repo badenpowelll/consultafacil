@@ -15,7 +15,11 @@ regex = '''postgres(?:ql)?://[^\s:/@'"]+:([^\s@'"]{6,})@[^\s'"]+'''
 secretGroup = 1
 [rules.allowlist]
 regexTarget = "match"
-regexes = ['''://[^:]+:(TROQUE|postgres|senha-de-ci-apenas-para-testes-0001|senha-local-de-teste-1234567890)@''']
+regexes = [
+  '''://[^:]+:(TROQUE|postgres|senha-de-ci-apenas-para-testes-0001|senha-local-de-teste-1234567890)@''',
+  # Referência de variável do Railway (${{NOME}}): o valor fica no painel, não no arquivo.
+  '''://[^:]+:\$\{\{[A-Za-z0-9_.]+\}\}@''',
+]
 
 [[rules]]
 id = "senha-cf-app"
@@ -24,7 +28,11 @@ regex = '''(CF_APP_DB_PASSWORD|CF_SEED_SENHA)\s*[=:]\s*["']?([^\s"'#]{8,})'''
 secretGroup = 2
 [rules.allowlist]
 regexTarget = "match"
-regexes = ['''senha-de-ci-apenas-para-testes-0001''']
+regexes = [
+  '''senha-de-ci-apenas-para-testes-0001''',
+  # IaC do Railway: preserve() mantém o valor definido no painel; nenhum segredo no arquivo.
+  '''(CF_APP_DB_PASSWORD|CF_SEED_SENHA)\s*:\s*preserve\(\)''',
+]
 
 [allowlist]
 description = "Valores fictícios de CI e testes"
