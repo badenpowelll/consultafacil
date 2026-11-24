@@ -55,7 +55,9 @@ Produção inteira no Railway, na mesma região:
 |---|---|---|
 | Aplicação | `npm run build` e `npm start` | `CF_AMBIENTE=producao`, domínio curinga `*.seu-dominio` |
 | Worker de e-mails | `npm run worker` | mesmas variáveis; `CF_EMAIL_TRANSPORTE=resend` |
-| Postgres 16 | — | migrações com `npm run db:migrate` antes de cada versão |
+| Postgres | — | migrações com `npm run db:predeploy` no pré-deploy de cada versão |
+
+Descrita em `.railway/railway.ts` e publicada automaticamente a cada push em `main` com o CI verde. Configuração inicial e operação em [`docs/deploy-railway.md`](docs/deploy-railway.md).
 
 Vercel só para previews com dados fictícios.
 
