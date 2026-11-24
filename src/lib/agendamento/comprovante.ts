@@ -51,6 +51,8 @@ export interface DadosComprovante {
   codigo: string;
   endereco: string;
   emitidoEm: Date;
+  /** Logomarca do município, já limpa. Sem ela, sai a marca genérica do sistema. */
+  logo?: { contentType: "image/png" | "image/jpeg"; dados: Buffer } | null;
 }
 
 function corHex(hex: string | null, padrao: RGB): RGB {
@@ -91,7 +93,7 @@ function linhas(texto: string, fonte: PDFFont, tamanho: number, largura: number)
   return saida;
 }
 
-/** Marca genérica do sistema (círculo com cruz), desenhada em vetor. A logomarca do município entra aqui quando o envio de logo existir. */
+/** Marca genérica do sistema (círculo com cruz), desenhada em vetor, para município sem logomarca. */
 function desenharMarca(pagina: PDFPage, cx: number, cy: number, cor: RGB): void {
   pagina.drawCircle({ x: cx, y: cy, size: 22, color: cor });
   pagina.drawRectangle({ x: cx - 4, y: cy - 13, width: 8, height: 26, color: rgb(1, 1, 1) });
@@ -135,8 +137,20 @@ export async function gerarPdfComprovante(d: DadosComprovante): Promise<Uint8Arr
   const largura = pagina.getWidth() - 2 * margem;
 
   let y = 780;
-  desenharMarca(pagina, pagina.getWidth() / 2, y, cor);
-  y -= 50;
+  const logo = d.logo
+    ? d.logo.contentType === "image/png" ? await doc.embedPng(d.logo.dados) : await doc.embedJpg(d.logo.dados)
+    : null;
+  if (logo) {
+    // Cabe numa caixa de 160 x 60 pontos, centralizada, sem distorcer.
+    const escala = Math.min(160 / logo.width, 60 / logo.height, 1);
+    const w = logo.width * escala;
+    const h = logo.height * escala;
+    pagina.drawImage(logo, { x: (pagina.getWidth() - w) / 2, y: y + 22 - h, width: w, height: h });
+    y -= Math.max(50, h - 22 + 28);
+  } else {
+    desenharMarca(pagina, pagina.getWidth() / 2, y, cor);
+    y -= 50;
+  }
   for (const l of linhas(d.municipio.toUpperCase(), negrito, 17, largura)) {
     centralizado(pagina, l, y, negrito, 17, texto);
     y -= 21;

@@ -68,3 +68,10 @@ a.botao.secundario { background: transparent; color: var(--primaria); }
 dl.cartao dt { font-weight: 600; margin-top: 0.6rem; }
 dl.cartao dt:first-child { margin-top: 0; }
 dl.cartao dd { margin: 0.1rem 0 0; }
+
+fieldset.permissoes { border: 1px solid var(--borda, #d0d5dd); border-radius: 8px; padding: 8px 12px; margin: 0; }
+fieldset.permissoes legend { font-weight: 600; padding: 0 4px; }
+label.marcar { display: flex; gap: 8px; align-items: center; font-weight: normal; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.previa-logo { max-width: 240px; max-height: 96px; display: block; margin: 8px 0 16px; }
+.logo-topo { height: 32px; width: auto; vertical-align: middle; margin-right: 8px; }
