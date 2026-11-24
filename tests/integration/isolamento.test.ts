@@ -88,10 +88,16 @@ describe("RLS forçado", () => {
 });
 
 describe("tabelas globais sensíveis", () => {
-  it.each(["pessoa", "conta", "sessao", "ocupacao_pessoa", "limite_tentativa"])(
-    "cf_app não lê app.%s diretamente",
-    async (tabela) => {
-      await expect(obterPool().query("SELECT * FROM app." + tabela + " LIMIT 1")).rejects.toThrow(
+  it.each([
+    "SELECT * FROM app.pessoa LIMIT 1",
+    "SELECT * FROM app.conta LIMIT 1",
+    "SELECT * FROM app.sessao LIMIT 1",
+    "SELECT * FROM app.ocupacao_pessoa LIMIT 1",
+    "SELECT * FROM app.limite_tentativa LIMIT 1",
+  ])(
+    "cf_app não lê tabela global diretamente: %s",
+    async (sql) => {
+      await expect(obterPool().query(sql)).rejects.toThrow(
         /permission denied/,
       );
     },

@@ -28,9 +28,32 @@ export function env(): Env {
       const campos = resultado.error.issues.map((i) => i.path.join(".")).join(", ");
       throw new Error(`Configuração inválida ou ausente: ${campos}`);
     }
+    conferirSegregacaoDeSegredos(resultado.data);
     cache = resultado.data;
   }
   return cache;
+}
+
+/**
+ * Em produção, o processo da aplicação não pode carregar credenciais que não usa. Se a
+ * aplicação for comprometida (ou um log despejar o ambiente), o estrago fica limitado ao
+ * papel cf_app. A URL administrativa e a senha do seed existem só no job de migração.
+ */
+const PROIBIDAS_EM_PRODUCAO = ["DATABASE_URL_ADMIN", "CF_SEED_SENHA", "CF_APP_DB_PASSWORD"] as const;
+
+export function conferirSegregacaoDeSegredos(e: Env, ambiente: Record<string, string | undefined> = process.env): void {
+  if (e.NODE_ENV !== "production" || ambiente.CF_PROCESSO === "migracao") return;
+  const presentes = PROIBIDAS_EM_PRODUCAO.filter((nome) => (ambiente[nome] ?? "") !== "");
+  if (presentes.length > 0) {
+    throw new Error(`Variáveis administrativas presentes no processo da aplicação: ${presentes.join(", ")}`);
+  }
+  let usuario = "";
+  try {
+    usuario = decodeURIComponent(new URL(e.DATABASE_URL).username);
+  } catch {
+    usuario = "";
+  }
+  if (usuario !== "cf_app") throw new Error("DATABASE_URL da aplicação precisa usar o papel cf_app");
 }
 
 /** Apenas para testes. */
