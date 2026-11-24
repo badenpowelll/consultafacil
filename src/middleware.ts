@@ -6,6 +6,8 @@ import { slugDoHost } from "@/lib/web/municipio-host";
  * 2. Resolve o município pelo subdomínio e repassa em x-cf-municipio (só o slug; o id
  *    é buscado no banco e a sessão é conferida no servidor).
  * 3. Monta a CSP com nonce por requisição: nenhum script inline sem nonce executa.
+ * 4. Proíbe cache de qualquer resposta dinâmica: páginas e APIs carregam dados pessoais e
+ *    não podem ficar em proxy, CDN, cache do navegador nem no histórico de "voltar".
  */
 export function middleware(req: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
@@ -38,6 +40,9 @@ export function middleware(req: NextRequest) {
 
   const resposta = NextResponse.next({ request: { headers: cabecalhos } });
   resposta.headers.set("Content-Security-Policy", csp);
+  resposta.headers.set("Cache-Control", "no-store, private, max-age=0");
+  resposta.headers.set("Pragma", "no-cache");
+  resposta.headers.set("Vary", "Cookie");
   return resposta;
 }
 

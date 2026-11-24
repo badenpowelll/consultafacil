@@ -50,6 +50,8 @@ A IA barateou ataques que antes exigiam esforço humano. O sistema parte do prin
 
 **Aplicação web.** CSP com nonce por requisição, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP. Cabeçalhos internos `x-cf-*` vindos do cliente são descartados. Só consultas parametrizadas.
 
+**Prevenção de vazamento.** Cada caminho de saída de dados (respostas de API, erros, logs, exportações, uploads, links por e-mail, cache, backups) tem barreiras em camadas descritas em [`matriz-vazamento.md`](matriz-vazamento.md), com o teste que prova cada uma.
+
 **Auditoria.** Tabela somente inserção (gatilhos bloqueiam UPDATE, DELETE e TRUNCATE; a aplicação não tem esses privilégios). Detalhes passam por filtro que remove dado pessoal.
 
 ## 5. Uso de IA dentro do produto (quando existir)
