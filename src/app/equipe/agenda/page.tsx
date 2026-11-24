@@ -59,7 +59,10 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<B
                 <td>{hora(i.inicio)}</td>
                 <td>{i.profissional}</td>
                 <td>{i.cidadao_vinculo_id ? nomes.get(i.cidadao_vinculo_id) ?? "—" : <span className="suave">{i.estado_vaga === "bloqueada" ? "Bloqueada" : "Livre"}</span>}</td>
-                <td>{i.estado_consulta ? ESTADOS[i.estado_consulta] ?? i.estado_consulta : ""}</td>
+                <td>
+                  {i.estado_consulta ? ESTADOS[i.estado_consulta] ?? i.estado_consulta : ""}
+                  {i.agendamento_id && <> · <a href={`/comprovante/${i.agendamento_id}`} target="_blank" rel="noopener">Comprovante</a></>}
+                </td>
                 <td>
                   {i.agendamento_id && ["marcada", "confirmada", "presente"].includes(i.estado_consulta ?? "") && i.inicio.getTime() <= Date.now() + 2 * 3_600_000 && (
                     <div className="linha">

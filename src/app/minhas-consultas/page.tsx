@@ -41,6 +41,7 @@ export default async function MinhasConsultas({ searchParams }: { searchParams: 
           <h3 id={`c-${c.id}`}>{dataHora(c.inicio)}</h3>
           <p>{c.especialidade} com {c.profissional} · {c.unidade}</p>
           <p><span className="etiqueta">{ESTADOS[c.estado] ?? c.estado}</span></p>
+          <p><a href={`/comprovante/${c.id}`} target="_blank" rel="noopener">Comprovante de agendamento (PDF)</a></p>
           {c.estado === "aguardando_remanejamento" && (
             <p><a href={`/marcar?remarcar=${c.id}`}>Escolher outro horário</a></p>
           )}
@@ -68,13 +69,14 @@ export default async function MinhasConsultas({ searchParams }: { searchParams: 
         <>
           <h2>Histórico</h2>
           <table>
-            <thead><tr><th>Quando</th><th>Atendimento</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Quando</th><th>Atendimento</th><th>Situação</th><th>Comprovante</th></tr></thead>
             <tbody>
               {historico.map((c) => (
                 <tr key={c.id}>
                   <td>{dataHora(c.inicio)}</td>
                   <td>{c.especialidade} · {c.unidade}</td>
                   <td>{ESTADOS[c.estado] ?? c.estado}</td>
+                  <td><a href={`/comprovante/${c.id}`} target="_blank" rel="noopener">PDF</a></td>
                 </tr>
               ))}
             </tbody>

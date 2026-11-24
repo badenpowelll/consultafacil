@@ -5,6 +5,10 @@ import { comPermissao, AcessoNegado } from "@/lib/auth/autorizar";
 import type { SessaoValida } from "@/lib/auth/sessao";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { ErroAgendamento, traduzirErroBanco } from "@/lib/agendamento/erros";
+import { obterPool } from "@/lib/db/pool";
+import {
+  codigoDoComprovante, enderecoDeValidacao, hashDoCodigo, normalizarCodigo, type DadosComprovante,
+} from "@/lib/agendamento/comprovante";
 
 /**
  * Serviço de agendamento. Toda regra crítica (vaga livre, conflito de horário, limite por cidadão,
@@ -379,4 +383,133 @@ export async function registrarAusencia(req: Requisicao, dados: unknown): Promis
       return n;
     }),
   );
+}
+
+// ------------------------------------------------------------------ comprovante
+export interface Comprovante {
+  dados: DadosComprovante;
+}
+
+const SITUACOES_COMPROVANTE: Record<string, string> = {
+  marcada: "Agendado",
+  confirmada: "Confirmado",
+  aguardando_remanejamento: "Aguardando novo horário",
+  presente: "Paciente presente",
+  atendida: "Concluído",
+  faltou: "Não compareceu",
+  cancelada_cidadao: "Cancelado pelo paciente",
+  cancelada_unidade: "Cancelado pela unidade",
+  remarcada: "Remarcado",
+};
+
+async function montarComprovante(tx: Conexao, id: string, req: Requisicao): Promise<Comprovante> {
+  const r = await tx.query<{
+    estado: string; inicio: Date; unidade: string; profissional: string; especialidade: string;
+    cidadao_vinculo_id: string; municipio: string; slug: string; fuso: string; cor_primaria: string | null;
+  }>(
+    `SELECT a.estado, lower(v.periodo) AS inicio, u.nome AS unidade, p.nome_exibicao AS profissional, p.especialidade,
+            a.cidadao_vinculo_id, t.nome AS municipio, t.slug, t.fuso, iv.cor_primaria
+     FROM app.agendamento a
+     JOIN app.vaga v ON v.id = a.vaga_id
+     JOIN app.unidade u ON u.id = v.unidade_id
+     JOIN app.profissional p ON p.id = v.profissional_id
+     JOIN app.tenant t ON t.id = a.tenant_id
+     LEFT JOIN app.identidade_visual iv ON iv.tenant_id = a.tenant_id
+     WHERE a.id = $1`,
+    [id],
+  );
+  const c = r.rows[0];
+  if (!c) throw new ErroAgendamento("consulta_inexistente");
+  const nome = await tx.query<{ nome: string }>("SELECT nome FROM app.nomes_de_vinculos(ARRAY[$1]::uuid[])", [c.cidadao_vinculo_id]);
+
+  const codigo = codigoDoComprovante(id);
+  // Primeira emissão grava o hash do código; a segunda via reaproveita (o código é o mesmo).
+  const novo = await tx.query(
+    `INSERT INTO app.comprovante (tenant_id, agendamento_id, token_hash, emitido_por)
+     VALUES (app.tenant_atual(), $1, $2, app.conta_atual()) ON CONFLICT (tenant_id, agendamento_id) DO NOTHING`,
+    [id, hashDoCodigo(codigo)],
+  );
+  await registrarAuditoria(tx, {
+    acao: "agenda.comprovante", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id,
+    detalhes: { segunda_via: novo.rowCount === 0 }, ip: req.ip,
+  });
+  return {
+    dados: {
+      municipio: c.municipio,
+      corPrimaria: c.cor_primaria,
+      situacao: SITUACOES_COMPROVANTE[c.estado] ?? c.estado,
+      inicio: c.inicio,
+      fuso: c.fuso,
+      unidade: c.unidade,
+      profissional: c.profissional,
+      especialidade: c.especialidade,
+      paciente: nome.rows[0]?.nome ?? "",
+      codigo,
+      endereco: enderecoDeValidacao(c.slug, codigo),
+      emitidoEm: new Date(),
+    },
+  };
+}
+
+/**
+ * Comprovante de uma consulta. O cidadão emite o das próprias consultas; a equipe, o das consultas
+ * de unidades em que tem a permissão de ver a agenda (para imprimir na recepção).
+ */
+export async function emitirComprovante(req: Requisicao, agendamentoId: unknown): Promise<Comprovante> {
+  const id = validar(uuid, agendamentoId);
+  return executar(async () => {
+    try {
+      return await comoCidadao(req, async (tx, vinculoId) => {
+        await garantirQueEhDoCidadao(tx, id, vinculoId);
+        return montarComprovante(tx, id, req);
+      });
+    } catch (erro) {
+      // Não é cidadão aqui, ou a consulta não é dele: tenta como equipe da unidade.
+      if (!(erro instanceof ErroAgendamento && (erro.codigo === "nao_e_sua" || erro.codigo === "sem_vinculo_cidadao"))) throw erro;
+    }
+    try {
+      return await comPermissaoNaUnidade(req, "agenda.ver", (tx) => unidadeDaConsulta(tx, id), (tx) => montarComprovante(tx, id, req));
+    } catch (erro) {
+      // Mesma resposta para "não existe" e "sem permissão": não revela consultas alheias.
+      if (erro instanceof AcessoNegado || (erro instanceof ErroAgendamento && erro.codigo === "consulta_inexistente")) {
+        throw new ErroAgendamento("nao_e_sua");
+      }
+      throw erro;
+    }
+  });
+}
+
+export interface ResultadoValidacao {
+  situacao: string;
+  inicio: Date;
+  unidade: string;
+  profissional: string;
+  especialidade: string;
+  iniciais: string;
+  municipio: string;
+  fuso: string;
+  emitidoEm: Date;
+}
+
+/** Validação pública, sem sessão. Devolve null para código inválido, de outro município ou inexistente. */
+export async function validarComprovante(tenantId: string, codigoDigitado: unknown): Promise<ResultadoValidacao | null> {
+  const codigo = normalizarCodigo(codigoDigitado);
+  if (!codigo) return null;
+  const r = await obterPool().query<{
+    estado: string; inicio: Date; unidade: string; profissional: string; especialidade: string;
+    iniciais: string | null; municipio: string; fuso: string; emitido_em: Date;
+  }>("SELECT * FROM app.comprovante_validar($1, $2)", [tenantId, hashDoCodigo(codigo)]);
+  const c = r.rows[0];
+  if (!c) return null;
+  return {
+    situacao: SITUACOES_COMPROVANTE[c.estado] ?? c.estado,
+    inicio: c.inicio,
+    unidade: c.unidade,
+    profissional: c.profissional,
+    especialidade: c.especialidade,
+    iniciais: c.iniciais ?? "",
+    municipio: c.municipio,
+    fuso: c.fuso,
+    emitidoEm: c.emitido_em,
+  };
 }
