@@ -7,13 +7,17 @@ import { formatoDeTokenValido, gerarTokenOpaco, hashDoToken } from "@/lib/securi
  * Quem lê o banco não consegue montar um cookie válido, e revogar é uma escrita, sem esperar
  * um JWT expirar.
  */
-export const COOKIE_SESSAO = "__Host-cf_sessao";
+/**
+ * __Host-: exige Secure, Path=/ e proíbe Domain, então um subdomínio não sobrescreve o cookie.
+ * Exceção só para desenvolvimento em *.localhost sem HTTPS (navegadores recusam Secure ali).
+ */
+const LOCAL = (process.env.CF_DOMINIO_BASE ?? "localhost") === "localhost" && process.env.CF_AMBIENTE !== "producao";
+export const COOKIE_SESSAO = LOCAL ? "cf_sessao_dev" : "__Host-cf_sessao";
 
-/** __Host-: exige Secure, Path=/ e proíbe Domain, então um subdomínio não sobrescreve o cookie. */
 export function opcoesCookieSessao() {
   return {
     httpOnly: true,
-    secure: true,
+    secure: !LOCAL,
     sameSite: "lax" as const,
     path: "/",
     maxAge: env().CF_SESSAO_ABSOLUTA_H * 3600,

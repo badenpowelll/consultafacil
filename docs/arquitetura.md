@@ -26,6 +26,15 @@ Revogar precisa valer na hora (troca de senha, suspensão de município, demiss�
 
 Sessão → município escolhido (precisa coincidir com o subdomínio) → vínculo ativo → permissão no escopo. O gestor recebe permissões administrativas, nunca clínicas; permissões clínicas só vêm de perfis atribuídos.
 
+## Agendamento (incremento 2)
+
+- **Escala → vagas.** O gestor define dias da semana, horário e duração da consulta; `app.vagas_gerar` cria as vagas em horário local do município (`tenant.fuso`). Cada vaga reserva o horário do profissional na ocupação global, então ele nunca tem vagas sobrepostas em duas unidades ou municípios.
+- **Marcar.** `app.agendamento_marcar` trava a vaga (`FOR UPDATE`), confere vínculo de cidadão ativo, limite de 3 consultas futuras e reserva o horário do paciente na ocupação global. Duas pessoas na mesma vaga ao mesmo tempo: uma consegue, a outra recebe "vaga ocupada".
+- **Desmarcar e remarcar.** A consulta não é apagada (gatilho bloqueia DELETE); muda de estado e a vaga volta a ficar livre se ainda estiver no futuro.
+- **Máquina de estados.** `app.agendamento_transicao_valida` lista as transições permitidas; qualquer outra é recusada pelo banco. Cada transição gera um evento em `agendamento_evento` (somente inserção).
+- **Ausência do profissional.** Bloqueia as vagas livres da unidade no período e põe as consultas em "aguardando remanejamento": elas continuam valendo até o paciente escolher outro horário ou a unidade agir. Silêncio nunca cancela consulta.
+- **E-mails.** As operações gravam na fila `notificacao` só identificadores. O worker (`npm run worker`) reserva lotes com `SKIP LOCKED`, busca o endereço cifrado por uma função própria, envia por API HTTPS e tenta de novo com espera crescente (até 5 vezes).
+
 ## Fora do piloto
 
 Prescrição, atestado com CID-10 e envio por WhatsApp ficam para a fase clínica, conforme o plano v2.

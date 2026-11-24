@@ -50,7 +50,9 @@ describe("links de ação (credenciais ao portador)", () => {
     const token = await emA((tx) => criarLinkAcao(tx, "confirmar", randomUUID()));
     expect(await emB((tx) => consumirLinkAcao(tx, "confirmar", token))).toBeNull();
     expect(await emA((tx) => consumirLinkAcao(tx, "recuperar_senha", token))).toBeNull();
-    expect(await emA((tx) => consumirLinkAcao(tx, "confirmar", `${token.slice(0, -1)}A`))).toBeNull();
+    // Troca o último caractere por outro diferente (se já fosse "A", trocar por "A" não adulteraria nada).
+    const outro = token.endsWith("A") ? "B" : "A";
+    expect(await emA((tx) => consumirLinkAcao(tx, "confirmar", `${token.slice(0, -1)}${outro}`))).toBeNull();
     expect(await emA((tx) => consumirLinkAcao(tx, "confirmar", "curto"))).toBeNull();
     // Continua válido para o uso legítimo depois das tentativas.
     expect(await emA((tx) => consumirLinkAcao(tx, "confirmar", token))).not.toBeNull();
