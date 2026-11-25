@@ -11,7 +11,7 @@ export async function acaoMarcar(formulario: FormData): Promise<void> {
   const remarcar = formulario.get("remarcar");
   try {
     if (remarcar) await remarcarMinha(atual.req, remarcar, formulario.get("vaga"));
-    else await marcarParaMim(atual.req, formulario.get("vaga"));
+    else await marcarParaMim(atual.req, formulario.get("vaga"), formulario.get("para"));
   } catch (erro) {
     if (erro instanceof ErroAgendamento) redirect(`/marcar?erro=${erro.codigo}`);
     throw erro;

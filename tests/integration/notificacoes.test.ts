@@ -66,7 +66,10 @@ describe("avisos por e-mail", () => {
     const r = await processarLote(transporte);
     expect(r.enviadas).toBe(2);
     expect(transporte.enviados.map((e) => e.destino)).toEqual(["paciente.ficticio@exemplo.test", "paciente.ficticio@exemplo.test"]);
-    const [marcada, ausente] = transporte.enviados.map((e) => e.mensagem);
+    // O lote não tem ordem garantida entre avisos do mesmo instante.
+    const mensagens = transporte.enviados.map((e) => e.mensagem);
+    const marcada = mensagens.find((m) => m.assunto.startsWith("Consulta marcada"));
+    const ausente = mensagens.find((m) => m.assunto.startsWith("Aviso:"));
     expect(marcada!.assunto).toContain("Consulta marcada");
     expect(ausente!.assunto).toContain("não poderá atender");
     expect(ausente!.texto).toContain("Dra. Fictícia Lima");

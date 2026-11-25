@@ -22,6 +22,7 @@ export async function acaoCadastrar(formulario: FormData): Promise<void> {
     nascimento: formulario.get("nascimento"),
     email: formulario.get("email"),
     senha: formulario.get("senha"),
+    aceite: formulario.get("aceite") === "sim",
   });
   if (!r.ok) redirect(`/cadastro?erro=${r.campos.join(",")}`);
   redirect("/cadastro?enviado=1");

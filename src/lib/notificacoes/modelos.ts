@@ -3,6 +3,7 @@
  * ou informação clínica. Todo valor dinâmico é escapado antes de entrar no HTML.
  */
 export type Modelo = "consulta_marcada" | "consulta_desmarcada" | "profissional_ausente" | "consulta_remarcada";
+export type ModeloConta = "recuperar_senha";
 
 export interface DadosConsulta {
   municipio: string;
@@ -13,6 +14,8 @@ export interface DadosConsulta {
   fuso: string;
   link: string;
   pelaUnidade?: boolean;
+  /** Primeiro nome do dependente, quando a consulta é dele (o aviso vai para o titular). */
+  dependente?: string | null;
 }
 
 export interface Mensagem {
@@ -30,7 +33,8 @@ function quando(d: DadosConsulta): string {
 }
 
 export function montarMensagem(modelo: Modelo, d: DadosConsulta): Mensagem {
-  const detalhe = `${quando(d)}, ${d.especialidade} com ${d.profissional}, na ${d.unidade}.`;
+  const paciente = d.dependente ? `Consulta de ${d.dependente}: ` : "";
+  const detalhe = `${paciente}${quando(d)}, ${d.especialidade} com ${d.profissional}, na ${d.unidade}.`;
   const corpo: Record<Modelo, { assunto: string; linhas: string[] }> = {
     consulta_marcada: {
       assunto: "Consulta marcada",
@@ -66,4 +70,21 @@ export function montarMensagem(modelo: Modelo, d: DadosConsulta): Mensagem {
     `<p style="color:#555;font-size:12px">${escaparHtml(rodape)}</p>`,
   ].join("\n");
   return { assunto: `${c.assunto} · ${d.municipio}`, texto, html };
+}
+
+/** Link de recuperação de senha. O texto não traz nome nem CPF: só o município e o prazo. */
+export function montarMensagemConta(_modelo: ModeloConta, d: { municipio: string; link: string; minutos: number }): Mensagem {
+  const linhas = [
+    "Recebemos um pedido para criar uma nova senha no Consulta Fácil.",
+    `O link abaixo vale por ${d.minutos} minutos e só pode ser usado uma vez.`,
+    "Se não foi você, ignore esta mensagem: sua senha atual continua valendo.",
+  ];
+  const rodape = `Consulta Fácil · ${d.municipio}. Não respondemos por e-mail e nunca pedimos senha por mensagem.`;
+  const texto = [...linhas, "", `Criar nova senha: ${d.link}`, "", rodape].join("\n");
+  const html = [
+    ...linhas.map((l) => `<p>${escaparHtml(l)}</p>`),
+    `<p><a href="${escaparHtml(d.link)}">Criar nova senha</a></p>`,
+    `<p style="color:#555;font-size:12px">${escaparHtml(rodape)}</p>`,
+  ].join("\n");
+  return { assunto: `Nova senha · ${d.municipio}`, texto, html };
 }

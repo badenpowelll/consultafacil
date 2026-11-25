@@ -21,6 +21,7 @@ const esquema = z.object({
   }),
   email: z.string().trim().toLowerCase().email().max(200),
   senha: z.string().refine((s) => avaliarSenha(s) === null),
+  aceite: z.literal(true),
 });
 
 export type ResultadoCadastro = { ok: true } | { ok: false; campos: string[] };
@@ -52,7 +53,7 @@ export interface CidadaoPendente {
 }
 
 export async function cadastrosPendentes(req: Requisicao): Promise<CidadaoPendente[]> {
-  return comPermissao({ sessao: req.sessao, tenantDaUrl: req.tenantDaUrl, permissao: "cidadao.aprovar" }, async (tx) => {
+  return comPermissao({ sessao: req.sessao, tenantDaUrl: req.tenantDaUrl, permissao: "cidadao.aprovar", qualquerUnidade: true }, async (tx) => {
     const r = await tx.query<{ vinculo_id: string; nome: string; estado: string }>("SELECT * FROM app.membros_do_municipio('cidadao')");
     return r.rows.filter((l) => l.estado === "convidado").map(({ vinculo_id, nome }) => ({ vinculo_id, nome }));
   });
@@ -60,7 +61,7 @@ export async function cadastrosPendentes(req: Requisicao): Promise<CidadaoPenden
 
 export async function decidirCadastro(req: Requisicao, vinculoId: unknown, aprovar: boolean): Promise<void> {
   const id = z.string().uuid().parse(vinculoId);
-  await comPermissao({ sessao: req.sessao, tenantDaUrl: req.tenantDaUrl, permissao: "cidadao.aprovar" }, async (tx) => {
+  await comPermissao({ sessao: req.sessao, tenantDaUrl: req.tenantDaUrl, permissao: "cidadao.aprovar", qualquerUnidade: true }, async (tx) => {
     const r = await tx.query(
       "UPDATE app.vinculo SET estado = $2 WHERE id = $1 AND papel = 'cidadao' AND estado = 'convidado'",
       [id, aprovar ? "ativo" : "revogado"],

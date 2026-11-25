@@ -22,6 +22,11 @@ export interface Pedido {
   unidadeId?: string | null;
   /** Ações administrativas e clínicas exigem MFA verificado na sessão. */
   exigeMfa?: boolean;
+  /**
+   * Para o cadastro do cidadão (que é do município, não de uma unidade): basta a permissão no
+   * município ou em qualquer unidade dele. Ignora `unidadeId`.
+   */
+  qualquerUnidade?: boolean;
 }
 
 export async function comPermissao<T>(p: Pedido, trabalho: (tx: Conexao) => Promise<T>): Promise<T> {
@@ -33,10 +38,12 @@ export async function comPermissao<T>(p: Pedido, trabalho: (tx: Conexao) => Prom
   if (p.exigeMfa && !s.mfaVerificado) throw new AcessoNegado("sem_mfa");
 
   return comMunicipio({ tenantId: s.tenantId, contaId: s.contaId }, async (tx) => {
-    const r = await tx.query<{ ok: boolean }>(
-      "SELECT EXISTS (SELECT 1 FROM app.minhas_permissoes($1) AS m(codigo) WHERE m.codigo = $2) AS ok",
-      [p.unidadeId ?? null, p.permissao],
-    );
+    const r = p.qualquerUnidade
+      ? await tx.query<{ ok: boolean }>("SELECT app.pode_no_municipio($1) AS ok", [p.permissao])
+      : await tx.query<{ ok: boolean }>(
+          "SELECT EXISTS (SELECT 1 FROM app.minhas_permissoes($1) AS m(codigo) WHERE m.codigo = $2) AS ok",
+          [p.unidadeId ?? null, p.permissao],
+        );
     if (r.rows[0]?.ok !== true) throw new AcessoNegado("sem_permissao");
     return trabalho(tx);
   });

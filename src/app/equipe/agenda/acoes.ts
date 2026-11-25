@@ -34,5 +34,5 @@ export async function acaoDesmarcarUnidade(f: FormData) {
 }
 
 export async function acaoMarcarParaCidadao(f: FormData) {
-  await executar(f, (req) => marcarParaCidadao(req, f.get("vaga"), f.get("cidadao")));
+  await executar(f, (req) => marcarParaCidadao(req, f.get("vaga"), f.get("cidadao"), f.get("dependente")));
 }
