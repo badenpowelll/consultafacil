@@ -61,7 +61,19 @@ export default async function Marcar({ searchParams }: { searchParams: Promise<B
         <button type="submit" className="secundario">Buscar</button>
       </form>
       <h2>Horários livres nos próximos 14 dias</h2>
-      {vagas.length === 0 && !aviso && <p className="suave">Nenhum horário livre com esses filtros. Tente outra data ou especialidade.</p>}
+      {vagas.length === 0 && !aviso && (
+        <div className="cartao">
+          <p>Nenhum horário livre com esses filtros. Tente outra data ou especialidade.</p>
+          {!remarcar && (
+            <p>
+              Ou entre na lista de espera: quando abrir uma vaga, ela fica guardada para você por um tempo e avisamos por e-mail.{" "}
+              <a className="botao secundario" href={`/lista-de-espera?${new URLSearchParams({ ...(especialidade ? { especialidade } : {}), ...(para !== "eu" ? { para } : {}) }).toString()}`}>
+                Entrar na lista de espera
+              </a>
+            </p>
+          )}
+        </div>
+      )}
       <div className="grade">
         {vagas.map((v) => (
           <form key={v.id} className="cartao" action={acaoMarcar}>

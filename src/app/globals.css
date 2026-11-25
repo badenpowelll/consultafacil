@@ -82,3 +82,7 @@ label.marcar { display: flex; gap: 8px; align-items: center; font-weight: normal
   header, nav, footer, .nao-imprimir, form, h1, .suave:not(.folha-acesso .suave) { display: none !important; }
   .folha-acesso { border: none; box-shadow: none; }
 }
+
+/* Lista de espera */
+.destaque-borda { border: 2px solid var(--primaria, #0b5cad); }
+label.opcao { display: inline-flex; gap: 6px; align-items: center; margin-right: 16px; font-weight: normal; }

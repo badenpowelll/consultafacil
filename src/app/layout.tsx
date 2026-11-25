@@ -42,6 +42,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
                   <>
                     <a href="/minhas-consultas">Minhas consultas</a>
                     <a href="/marcar">Marcar consulta</a>
+                    <a href="/lista-de-espera">Lista de espera</a>
                     <a href="/minha-familia">Minha família</a>
                     {daEquipe && <a href="/equipe">Equipe</a>}
                     <form action="/sair" method="post">
