@@ -28,7 +28,8 @@ export default async function Entrar({ searchParams }: { searchParams: Promise<{
         <button type="submit">Entrar</button>
       </form>
       <p>Ainda não tem cadastro? <a href="/cadastro">Criar cadastro</a>.</p>
-      <p className="suave">Esqueceu a senha? Procure a recepção da sua unidade com um documento com foto.</p>
+      <p><a href="/recuperar">Esqueci minha senha</a></p>
+      <p className="suave">Sem e-mail cadastrado? Procure a recepção da sua unidade com um documento com foto: ela entrega um link de acesso.</p>
     </>
   );
 }

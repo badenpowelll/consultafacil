@@ -6,6 +6,7 @@ const CAMPOS: Record<string, string> = {
   nascimento: "data de nascimento",
   email: "e-mail",
   senha: "senha (mínimo de 12 caracteres, evite sequências óbvias)",
+  aceite: "aceite dos termos de uso",
 };
 
 export default async function Cadastro({ searchParams }: { searchParams: Promise<{ erro?: string; enviado?: string }> }) {
@@ -39,6 +40,9 @@ export default async function Cadastro({ searchParams }: { searchParams: Promise
         <label>
           Senha <span className="ajuda">Mínimo de 12 caracteres. Uma frase com palavras é fácil de lembrar e segura.</span>
           <input name="senha" type="password" autoComplete="new-password" required minLength={12} maxLength={128} />
+        </label>
+        <label className="marcar">
+          <input type="checkbox" name="aceite" value="sim" required /> Li e aceito os <a href="/termos" target="_blank" rel="noopener">termos de uso e privacidade</a>.
         </label>
         <button type="submit">Enviar cadastro</button>
       </form>

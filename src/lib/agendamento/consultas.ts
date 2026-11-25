@@ -39,11 +39,17 @@ export async function equipeSemCadastroProfissional(req: Requisicao): Promise<Op
   );
 }
 
-/** Nomes dos pacientes de uma agenda, só para quem pode ver a agenda daquela unidade. */
-export async function nomesDosPacientes(req: Requisicao, unidadeId: string, vinculos: string[]): Promise<Map<string, string>> {
-  if (vinculos.length === 0) return new Map();
+/**
+ * Nome de quem é atendido em cada consulta (o titular ou o dependente), só para quem pode ver a
+ * agenda daquela unidade. O banco confere de novo a permissão.
+ */
+export async function nomesDosPacientes(req: Requisicao, unidadeId: string, agendamentos: string[]): Promise<Map<string, string>> {
+  if (agendamentos.length === 0) return new Map();
   return comPermissao({ sessao: req.sessao, tenantDaUrl: req.tenantDaUrl, permissao: "agenda.ver", unidadeId }, async (tx) => {
-    const r = await tx.query<{ vinculo_id: string; nome: string }>("SELECT vinculo_id, nome FROM app.nomes_de_vinculos($1)", [vinculos]);
-    return new Map(r.rows.map((l) => [l.vinculo_id, l.nome]));
+    const r = await tx.query<{ agendamento_id: string; nome: string; dependente: boolean }>(
+      "SELECT agendamento_id, nome, dependente FROM app.nomes_de_pacientes($1)",
+      [agendamentos],
+    );
+    return new Map(r.rows.map((l) => [l.agendamento_id, l.dependente ? `${l.nome} (dependente)` : l.nome]));
   });
 }

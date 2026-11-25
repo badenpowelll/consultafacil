@@ -32,13 +32,13 @@ export default async function MinhasConsultas({ searchParams }: { searchParams: 
       <h1>Minhas consultas</h1>
       {ok && OK[ok] && <p className="ok" role="status">{OK[ok]}</p>}
       {erro && erro in MENSAGENS && <p className="erro" role="alert">{MENSAGENS[erro as CodigoErro]}</p>}
-      <p><a className="botao" href="/marcar">Marcar nova consulta</a></p>
+      <p className="linha"><a className="botao" href="/marcar">Marcar nova consulta</a> <a href="/minha-familia">Minha família</a></p>
 
       <h2>Próximas</h2>
       {futuras.length === 0 && <p className="suave">Nenhuma consulta marcada.</p>}
       {futuras.map((c) => (
         <article className="cartao" key={c.id} aria-labelledby={`c-${c.id}`}>
-          <h3 id={`c-${c.id}`}>{dataHora(c.inicio)}</h3>
+          <h3 id={`c-${c.id}`}>{dataHora(c.inicio)}{c.paciente && <> · <span className="etiqueta">{c.paciente}</span></>}</h3>
           <p>{c.especialidade} com {c.profissional} · {c.unidade}</p>
           <p><span className="etiqueta">{ESTADOS[c.estado] ?? c.estado}</span></p>
           <p><a href={`/comprovante/${c.id}`} target="_blank" rel="noopener">Comprovante de agendamento (PDF)</a></p>
@@ -69,11 +69,12 @@ export default async function MinhasConsultas({ searchParams }: { searchParams: 
         <>
           <h2>Histórico</h2>
           <table>
-            <thead><tr><th>Quando</th><th>Atendimento</th><th>Situação</th><th>Comprovante</th></tr></thead>
+            <thead><tr><th>Quando</th><th>Quem</th><th>Atendimento</th><th>Situação</th><th>Comprovante</th></tr></thead>
             <tbody>
               {historico.map((c) => (
                 <tr key={c.id}>
                   <td>{dataHora(c.inicio)}</td>
+                  <td>{c.paciente ?? "Você"}</td>
                   <td>{c.especialidade} · {c.unidade}</td>
                   <td>{ESTADOS[c.estado] ?? c.estado}</td>
                   <td><a href={`/comprovante/${c.id}`} target="_blank" rel="noopener">PDF</a></td>

@@ -95,13 +95,23 @@ export async function vagasParaCidadao(req: Requisicao, filtro: unknown): Promis
   return comoCidadao(req, (tx) => buscarVagas(tx, f));
 }
 
-export async function marcarParaMim(req: Requisicao, vagaId: unknown): Promise<string> {
+/** Dependente opcional: vazio é o próprio titular. O banco só aceita dependente ativo dele. */
+function dependenteOpcional(valor: unknown): string | null {
+  if (valor === undefined || valor === null || valor === "" || valor === "eu") return null;
+  return validar(uuid, valor);
+}
+
+export async function marcarParaMim(req: Requisicao, vagaId: unknown, dependenteId?: unknown): Promise<string> {
   const vaga = validar(uuid, vagaId);
+  const dependente = dependenteOpcional(dependenteId);
   return executar(() =>
     comoCidadao(req, async (tx, vinculoId) => {
-      const r = await tx.query<{ id: string }>("SELECT app.agendamento_marcar($1, $2) AS id", [vaga, vinculoId]);
+      const r = await tx.query<{ id: string }>("SELECT app.agendamento_marcar($1, $2, NULL, $3) AS id", [vaga, vinculoId, dependente]);
       const id = r.rows[0]!.id;
-      await registrarAuditoria(tx, { acao: "agenda.marcar", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id, detalhes: { autoatendimento: true }, ip: req.ip });
+      await registrarAuditoria(tx, {
+        acao: "agenda.marcar", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id,
+        detalhes: { autoatendimento: true, dependente: dependente !== null }, ip: req.ip,
+      });
       return id;
     }),
   );
@@ -115,17 +125,20 @@ export interface ConsultaDoCidadao {
   unidade: string;
   profissional: string;
   especialidade: string;
+  /** Como o titular chama o dependente; null quando a consulta é do próprio titular. */
+  paciente: string | null;
 }
 
 export async function minhasConsultas(req: Requisicao): Promise<ConsultaDoCidadao[]> {
   return comoCidadao(req, async (tx, vinculoId) => {
     const r = await tx.query<ConsultaDoCidadao>(
       `SELECT a.id, a.estado, lower(v.periodo) AS inicio, upper(v.periodo) AS fim, u.nome AS unidade,
-              p.nome_exibicao AS profissional, p.especialidade
+              p.nome_exibicao AS profissional, p.especialidade, d.nome_curto AS paciente
        FROM app.agendamento a
        JOIN app.vaga v ON v.id = a.vaga_id
        JOIN app.unidade u ON u.id = v.unidade_id
        JOIN app.profissional p ON p.id = v.profissional_id
+       LEFT JOIN app.dependente d ON d.id = a.dependente_id
        WHERE a.cidadao_vinculo_id = $1
        ORDER BY lower(v.periodo) DESC
        LIMIT 50`,
@@ -204,14 +217,17 @@ async function comPermissaoNaUnidade<T>(
   return comPermissao({ sessao: s, tenantDaUrl: req.tenantDaUrl, permissao, unidadeId }, trabalho);
 }
 
-export async function marcarParaCidadao(req: Requisicao, vagaId: unknown, cidadaoVinculoId: unknown): Promise<string> {
+export async function marcarParaCidadao(req: Requisicao, vagaId: unknown, cidadaoVinculoId: unknown, dependenteId?: unknown): Promise<string> {
   const vaga = validar(uuid, vagaId);
   const cidadao = validar(uuid, cidadaoVinculoId);
+  const dependente = dependenteOpcional(dependenteId);
   return executar(() =>
     comPermissaoNaUnidade(req, "agenda.marcar", (tx) => unidadeDaVaga(tx, vaga), async (tx) => {
-      const r = await tx.query<{ id: string }>("SELECT app.agendamento_marcar($1, $2) AS id", [vaga, cidadao]);
+      const r = await tx.query<{ id: string }>("SELECT app.agendamento_marcar($1, $2, NULL, $3) AS id", [vaga, cidadao, dependente]);
       const id = r.rows[0]!.id;
-      await registrarAuditoria(tx, { acao: "agenda.marcar", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id, ip: req.ip });
+      await registrarAuditoria(tx, {
+        acao: "agenda.marcar", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id, detalhes: { dependente: dependente !== null }, ip: req.ip,
+      });
       return id;
     }),
   );
@@ -420,7 +436,8 @@ async function montarComprovante(tx: Conexao, id: string, req: Requisicao): Prom
   );
   const c = r.rows[0];
   if (!c) throw new ErroAgendamento("consulta_inexistente");
-  const nome = await tx.query<{ nome: string }>("SELECT nome FROM app.nomes_de_vinculos(ARRAY[$1]::uuid[])", [c.cidadao_vinculo_id]);
+  // Quem é atendido: o titular ou o dependente.
+  const nome = await tx.query<{ nome: string }>("SELECT nome FROM app.nomes_de_pacientes(ARRAY[$1]::uuid[])", [id]);
 
   const logo = await tx.query<{ content_type: "image/png" | "image/jpeg"; dados: Buffer }>(
     `SELECT a.content_type, a.dados FROM app.identidade_visual iv
