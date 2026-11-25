@@ -11,6 +11,8 @@ export default async function Equipe() {
       <p className="suave">Cada setor vê só o que o gestor liberou para a sua unidade.</p>
       <div className="grade">
         <a className="cartao" href="/equipe/agenda"><strong>Agenda do dia</strong><br />Marcar para o cidadão, check-in, atendida e falta.</a>
+        <a className="cartao" href="/equipe/contatos"><strong>Contatos pendentes</strong><br />Quem não confirmou, ficou sem aviso ou recebeu vaga para hoje ou amanhã.</a>
+        <a className="cartao" href="/equipe/espera"><strong>Lista de espera</strong><br />Fila por especialidade, prioridades e vagas oferecidas.</a>
         <Link className="cartao" href="/equipe/cidadaos"><strong>Cidadãos</strong><br />Buscar por CPF ou nome, cadastrar no balcão, dependentes e link de acesso.</Link>
         <a className="cartao" href="/equipe/cadastros"><strong>Cadastros pendentes</strong><br />Aprovar cidadãos e dependentes pedidos pelo site.</a>
         <a className="cartao" href="/equipe/escalas"><strong>Escalas e ausências</strong><br />Dias e horários de cada profissional; avisar pacientes quando ele faltar.</a>

@@ -1,7 +1,8 @@
 import { comConta, comMunicipio } from "@/lib/db/contexto";
-import { env } from "@/lib/env";
 import { decifrar } from "@/lib/security/crypto";
-import { montarMensagem, montarMensagemConta, type DadosConsulta, type Modelo, type ModeloConta } from "@/lib/notificacoes/modelos";
+import {
+  montarMensagem, montarMensagemConta, montarMensagemOferta, type DadosConsulta, type DadosOferta, type Mensagem, type Modelo, type ModeloConta,
+} from "@/lib/notificacoes/modelos";
 import { PRAZO_MINUTOS } from "@/lib/security/links";
 import { origemDoMunicipio } from "@/lib/web/endereco";
 import type { Transporte } from "@/lib/notificacoes/transporte";
@@ -14,24 +15,26 @@ import type { Transporte } from "@/lib/notificacoes/transporte";
 interface ItemFila {
   id: string;
   tenant_id: string;
-  modelo: Modelo | ModeloConta;
-  dados: { agendamento_id?: string; pela_unidade?: boolean; token_cifrado?: string };
+  modelo: Modelo | ModeloConta | "vaga_oferecida";
+  dados: { agendamento_id?: string; oferta_id?: string; pela_unidade?: boolean; token_cifrado?: string };
   email_cifrado: Buffer | null;
   pessoa_id: string;
 }
 
-async function concluir(id: string, estado: "enviada" | "falhou" | "sem_contato"): Promise<void> {
+type Conclusao = "enviada" | "falhou" | "sem_contato" | "descartada";
+
+async function concluir(id: string, estado: Conclusao): Promise<void> {
   await comConta(null, (tx) => tx.query("SELECT app.notificacao_concluir($1, $2)", [id, estado]));
 }
 
-async function dadosDaConsulta(tenantId: string, agendamentoId: string): Promise<Omit<DadosConsulta, "pelaUnidade"> | null> {
+async function dadosDaConsulta(tenantId: string, agendamentoId: string): Promise<(Omit<DadosConsulta, "pelaUnidade"> & { estado: string }) | null> {
   return comMunicipio({ tenantId, contaId: null }, async (tx) => {
     const r = await tx.query<{
       municipio: string; slug: string; fuso: string; unidade: string; profissional: string; especialidade: string; inicio: Date;
-      dependente: string | null;
+      dependente: string | null; estado: string;
     }>(
       `SELECT t.nome AS municipio, t.slug, t.fuso, u.nome AS unidade, p.nome_exibicao AS profissional, p.especialidade,
-              lower(v.periodo) AS inicio, d.nome_curto AS dependente
+              lower(v.periodo) AS inicio, d.nome_curto AS dependente, a.estado
        FROM app.agendamento a
        LEFT JOIN app.dependente d ON d.id = a.dependente_id
        JOIN app.vaga v ON v.id = a.vaga_id
@@ -43,8 +46,49 @@ async function dadosDaConsulta(tenantId: string, agendamentoId: string): Promise
     );
     const l = r.rows[0];
     if (!l) return null;
-    return { ...l, link: `https://${l.slug}.${env().CF_DOMINIO_BASE}/minhas-consultas` };
+    return { ...l, confirmada: l.estado === "confirmada", link: `${origemDoMunicipio(l.slug)}/minhas-consultas` };
   });
+}
+
+/** Oferta ainda no prazo; NULL quando já foi respondida, venceu ou foi cancelada. */
+async function dadosDaOferta(tenantId: string, ofertaId: string): Promise<DadosOferta | null> {
+  return comMunicipio({ tenantId, contaId: null }, async (tx) => {
+    const r = await tx.query<{
+      municipio: string; slug: string; fuso: string; unidade: string; profissional: string; especialidade: string; inicio: Date;
+      dependente: string | null; expira_em: Date;
+    }>(
+      `SELECT t.nome AS municipio, t.slug, t.fuso, u.nome AS unidade, p.nome_exibicao AS profissional, p.especialidade,
+              lower(v.periodo) AS inicio, d.nome_curto AS dependente, o.expira_em
+       FROM app.oferta o
+       JOIN app.espera e ON e.id = o.espera_id
+       LEFT JOIN app.dependente d ON d.id = e.dependente_id
+       JOIN app.vaga v ON v.id = o.vaga_id
+       JOIN app.unidade u ON u.id = v.unidade_id
+       JOIN app.profissional p ON p.id = v.profissional_id
+       JOIN app.tenant t ON t.id = o.tenant_id
+       WHERE o.id = $1 AND o.estado = 'ativa' AND o.expira_em > now() + interval '10 minutes'`,
+      [ofertaId],
+    );
+    const l = r.rows[0];
+    if (!l) return null;
+    return { ...l, expiraEm: l.expira_em, link: `${origemDoMunicipio(l.slug)}/lista-de-espera` };
+  });
+}
+
+/** Monta a mensagem do item; "descartada" quando o aviso perdeu o sentido antes de sair. */
+async function mensagemDoItem(item: ItemFila): Promise<Mensagem | "descartada" | null> {
+  if (item.modelo === "recuperar_senha") return mensagemDeConta(item);
+  if (item.modelo === "vaga_oferecida") {
+    if (!item.dados.oferta_id) return null;
+    const oferta = await dadosDaOferta(item.tenant_id, item.dados.oferta_id);
+    return oferta ? montarMensagemOferta(oferta) : "descartada";
+  }
+  const consulta = item.dados.agendamento_id ? await dadosDaConsulta(item.tenant_id, item.dados.agendamento_id) : null;
+  if (!consulta) return null;
+  if (item.modelo === "lembrete_vespera" && (!["marcada", "confirmada"].includes(consulta.estado) || consulta.inicio.getTime() <= Date.now())) {
+    return "descartada";
+  }
+  return montarMensagem(item.modelo, { ...consulta, pelaUnidade: item.dados.pela_unidade });
 }
 
 /** Mensagem de conta (recuperação de senha): o token sai cifrado da fila e vira o link. */
@@ -72,26 +116,19 @@ export async function processarLote(transporte: Transporte, limite = 20): Promis
         totais.semContato++;
         continue;
       }
-      if (item.modelo === "recuperar_senha") {
-        const mensagem = await mensagemDeConta(item);
-        if (!mensagem) {
-          await concluir(item.id, "falhou");
-          totais.falhas++;
-          continue;
-        }
-        await transporte.enviar(decifrar(item.email_cifrado, "pessoa.email"), mensagem);
-        await concluir(item.id, "enviada");
-        totais.enviadas++;
+      const mensagem = await mensagemDoItem(item);
+      if (mensagem === "descartada") {
+        await concluir(item.id, "descartada");
         continue;
       }
-      const consulta = item.dados.agendamento_id ? await dadosDaConsulta(item.tenant_id, item.dados.agendamento_id) : null;
-      if (!consulta) {
+      if (!mensagem) {
         await concluir(item.id, "falhou");
         totais.falhas++;
         continue;
       }
-      const destino = decifrar(item.email_cifrado, "pessoa.email");
-      await transporte.enviar(destino, montarMensagem(item.modelo, { ...consulta, pelaUnidade: item.dados.pela_unidade }));
+      // A chave de idempotência faz o provedor ignorar a repetição se o worker cair entre o
+      // envio e o registro (a notificação volta para a fila e seria mandada de novo).
+      await transporte.enviar(decifrar(item.email_cifrado, "pessoa.email"), mensagem, `notificacao-${item.id}`);
       await concluir(item.id, "enviada");
       totais.enviadas++;
     } catch {

@@ -3,12 +3,13 @@ import { minhasConsultas } from "@/lib/agendamento/servico";
 import { ErroAgendamento, MENSAGENS, type CodigoErro } from "@/lib/agendamento/erros";
 import { requisicaoAtual } from "@/lib/web/requisicao";
 import { dataHora, ESTADOS } from "@/lib/web/formato";
-import { acaoDesmarcar } from "./acoes";
+import { acaoConfirmar, acaoDesmarcar } from "./acoes";
 
 const OK: Record<string, string> = {
   marcada: "Consulta marcada. Você vai receber a confirmação por e-mail.",
   desmarcada: "Consulta desmarcada. A vaga foi liberada para outra pessoa.",
   remarcada: "Consulta remarcada.",
+  confirmada: "Presença confirmada. Obrigado!",
 };
 
 export default async function MinhasConsultas({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
@@ -32,7 +33,7 @@ export default async function MinhasConsultas({ searchParams }: { searchParams: 
       <h1>Minhas consultas</h1>
       {ok && OK[ok] && <p className="ok" role="status">{OK[ok]}</p>}
       {erro && erro in MENSAGENS && <p className="erro" role="alert">{MENSAGENS[erro as CodigoErro]}</p>}
-      <p className="linha"><a className="botao" href="/marcar">Marcar nova consulta</a> <a href="/minha-familia">Minha família</a></p>
+      <p className="linha"><a className="botao" href="/marcar">Marcar nova consulta</a> <a href="/lista-de-espera">Lista de espera</a> <a href="/minha-familia">Minha família</a></p>
 
       <h2>Próximas</h2>
       {futuras.length === 0 && <p className="suave">Nenhuma consulta marcada.</p>}
@@ -41,6 +42,12 @@ export default async function MinhasConsultas({ searchParams }: { searchParams: 
           <h3 id={`c-${c.id}`}>{dataHora(c.inicio)}{c.paciente && <> · <span className="etiqueta">{c.paciente}</span></>}</h3>
           <p>{c.especialidade} com {c.profissional} · {c.unidade}</p>
           <p><span className="etiqueta">{ESTADOS[c.estado] ?? c.estado}</span></p>
+          {c.estado === "marcada" && (
+            <form action={acaoConfirmar}>
+              <input type="hidden" name="consulta" value={c.id} />
+              <button type="submit" className="secundario">Confirmar que vou</button>
+            </form>
+          )}
           <p><a href={`/comprovante/${c.id}`} target="_blank" rel="noopener">Comprovante de agendamento (PDF)</a></p>
           {c.estado === "aguardando_remanejamento" && (
             <p><a href={`/marcar?remarcar=${c.id}`}>Escolher outro horário</a></p>

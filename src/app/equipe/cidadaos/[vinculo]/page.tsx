@@ -6,6 +6,9 @@ import { AcessoNegado } from "@/lib/auth/autorizar";
 import { requisicaoAtual } from "@/lib/web/requisicao";
 import { semAcesso } from "@/lib/web/acesso";
 import { AcessoAssistido } from "@/components/AcessoAssistido";
+import { esperaDoCidadao, incluirNaEsperaPelaUnidade, opcoesDaEspera, PRIORIDADES, TURNOS } from "@/lib/agendamento/espera";
+import { ErroAgendamento, MENSAGENS, type CodigoErro } from "@/lib/agendamento/erros";
+import { dataHora } from "@/lib/web/formato";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,7 +31,27 @@ async function acaoIncluir(f: FormData): Promise<void> {
   redirect(destino);
 }
 
+async function acaoEspera(f: FormData): Promise<void> {
+  "use server";
+  const atual = await requisicaoAtual();
+  if (!atual?.req.sessao) redirect("/entrar");
+  const titular = String(f.get("titular") ?? "");
+  if (!UUID.test(titular)) redirect("/equipe/cidadaos");
+  let destino = `/equipe/cidadaos/${titular}?ok=espera`;
+  try {
+    await incluirNaEsperaPelaUnidade(atual.req, titular, {
+      especialidade: f.get("especialidade"), unidadeId: f.get("unidade"), turno: f.get("turno"), para: f.get("para"), prioridade: f.get("prioridade"),
+    });
+  } catch (e) {
+    if (e instanceof ErroAgendamento) destino = `/equipe/cidadaos/${titular}?erro=${e.codigo}`;
+    else if (e instanceof AcessoNegado) destino = `/equipe/cidadaos/${titular}?erro=sem_permissao`;
+    else throw e;
+  }
+  redirect(destino);
+}
+
 const OK: Record<string, string> = {
+  espera: "Incluído na lista de espera. Se já houver vaga que combina, ela é oferecida na hora.",
   novo: "Cadastro criado e aprovado. Se a pessoa quiser usar o site, gere o link de primeiro acesso.",
   aprovado: "A pessoa já tinha pedido cadastro pelo site: agora está aprovado.",
   ja_cadastrado: "Esta pessoa já tinha cadastro ativo. Nada foi alterado.",
@@ -57,6 +80,8 @@ export default async function Ficha({ params, searchParams }: { params: Promise<
   }
   if (!ficha) notFound();
   const ativo = ficha.estado === "ativo";
+  const espera = ativo ? await esperaDoCidadao(atual.req, vinculo).catch(() => []) : [];
+  const opcoes = ativo ? await opcoesDaEspera(atual.req) : { especialidades: [], unidades: [] };
   return (
     <>
       <p><Link href="/equipe/cidadaos">← Cidadãos</Link></p>
@@ -64,6 +89,7 @@ export default async function Ficha({ params, searchParams }: { params: Promise<
       {ok && OK[ok] && <p className="ok" role="status">{OK[ok]}</p>}
       {erro === "sem_permissao" && <p className="erro" role="alert">Você não tem permissão para atendimento assistido.</p>}
       {erro && erro in MENSAGENS_FAMILIA && <p className="erro" role="alert">{MENSAGENS_FAMILIA[erro as CodigoFamilia]}</p>}
+      {erro && !(erro in MENSAGENS_FAMILIA) && erro in MENSAGENS && <p className="erro" role="alert">{MENSAGENS[erro as CodigoErro]}</p>}
       {!ativo && <p className="aviso">Este cadastro não está ativo ({ficha.estado}). Aprove em Cadastros pendentes antes de agendar.</p>}
 
       {ativo && (
@@ -113,6 +139,67 @@ export default async function Ficha({ params, searchParams }: { params: Promise<
           </label>
           <button type="submit">Incluir</button>
         </form>
+      )}
+
+      {ativo && (
+        <section>
+          <h2>Lista de espera</h2>
+          {espera.length === 0 && <p className="suave">Não está em nenhuma lista de espera.</p>}
+          {espera.length > 0 && (
+            <table>
+              <thead><tr><th>Especialidade</th><th>Quem</th><th>Onde e quando</th><th>Situação</th></tr></thead>
+              <tbody>
+                {espera.map((e) => (
+                  <tr key={e.id}>
+                    <td>{e.especialidade}</td>
+                    <td>{e.paciente ?? ficha.nome.split(" ")[0]}</td>
+                    <td>{e.unidade ?? "Qualquer unidade"} · {TURNOS[e.turno]}</td>
+                    <td>
+                      {e.oferta_ate ? <strong>Vaga oferecida até {dataHora(e.oferta_ate)}</strong> : "Na fila"}
+                      {e.prioridade && <> · <span className="etiqueta">{PRIORIDADES[e.prioridade]}</span></>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {opcoes.especialidades.length > 0 && (
+            <form className="campos cartao" action={acaoEspera}>
+              <h3>Incluir na lista de espera</h3>
+              <input type="hidden" name="titular" value={vinculo} />
+              <label>Especialidade
+                <select name="especialidade" required defaultValue="">
+                  <option value="" disabled>Escolha</option>
+                  {opcoes.especialidades.map((x) => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </label>
+              <label>Para quem
+                <select name="para" defaultValue="eu">
+                  <option value="eu">{ficha.nome}</option>
+                  {dependentes.filter((d) => d.estado === "ativo").map((d) => <option key={d.id} value={d.id}>{d.nome} (dependente)</option>)}
+                </select>
+              </label>
+              <label>Unidade
+                <select name="unidade" defaultValue="">
+                  <option value="">Qualquer unidade</option>
+                  {opcoes.unidades.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                </select>
+              </label>
+              <label>Turno
+                <select name="turno" defaultValue="qualquer">
+                  {Object.entries(TURNOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              <label>Prioridade (confira o documento)
+                <select name="prioridade" defaultValue="">
+                  <option value="">Sem prioridade</option>
+                  {Object.entries(PRIORIDADES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              <button type="submit">Incluir na lista</button>
+            </form>
+          )}
+        </section>
       )}
 
       {ativo && (

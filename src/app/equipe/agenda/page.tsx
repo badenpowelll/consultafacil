@@ -79,7 +79,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<B
               <tr key={i.vaga_id}>
                 <td>{hora(i.inicio)}</td>
                 <td>{i.profissional}</td>
-                <td>{i.agendamento_id ? nomes.get(i.agendamento_id) ?? "—" : <span className="suave">{i.estado_vaga === "bloqueada" ? "Bloqueada" : "Livre"}</span>}</td>
+                <td>{i.agendamento_id ? nomes.get(i.agendamento_id) ?? "—" : <span className="suave">{i.estado_vaga === "bloqueada" ? "Bloqueada" : i.oferecida_ate ? `Oferecida à lista de espera até ${hora(i.oferecida_ate)}` : "Livre"}</span>}</td>
                 <td>
                   {i.estado_consulta ? ESTADOS[i.estado_consulta] ?? i.estado_consulta : ""}
                   {i.agendamento_id && <> · <a href={`/comprovante/${i.agendamento_id}`} target="_blank" rel="noopener">Comprovante</a></>}
@@ -104,7 +104,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<B
                       </form>
                     </details>
                   )}
-                  {!i.agendamento_id && i.estado_vaga === "livre" && podeMarcar && i.inicio.getTime() > Date.now() && (
+                  {!i.agendamento_id && i.estado_vaga === "livre" && !i.oferecida_ate && podeMarcar && i.inicio.getTime() > Date.now() && (
                     <details>
                       <summary>{paraNome ? "Marcar" : "Marcar para cidadão"}</summary>
                       <form className="campos" action={acaoMarcarParaCidadao}>

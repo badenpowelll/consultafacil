@@ -41,7 +41,7 @@ async function executar<T>(trabalho: () => Promise<T>): Promise<T> {
 
 // ------------------------------------------------------------------ cidadão (autoatendimento)
 /** O cidadão age só sobre as próprias consultas, com vínculo de cidadão ativo no município. */
-async function comoCidadao<T>(req: Requisicao, trabalho: (tx: Conexao, vinculoId: string) => Promise<T>): Promise<T> {
+export async function comoCidadao<T>(req: Requisicao, trabalho: (tx: Conexao, vinculoId: string) => Promise<T>): Promise<T> {
   const s = req.sessao;
   if (!s) throw new AcessoNegado("sem_sessao");
   if (!s.tenantId) throw new AcessoNegado("sem_municipio");
@@ -80,6 +80,8 @@ async function buscarVagas(tx: Conexao, filtro: z.infer<typeof filtroVagas>): Pr
      JOIN app.unidade u ON u.id = v.unidade_id AND u.ativa
      JOIN app.profissional p ON p.id = v.profissional_id AND p.ativo
      WHERE v.estado = 'livre' AND lower(v.periodo) > now()
+       -- Vaga oferecida a alguém da lista de espera fica com essa pessoa até o prazo.
+       AND NOT EXISTS (SELECT 1 FROM app.oferta o WHERE o.vaga_id = v.id AND o.estado = 'ativa' AND o.expira_em > now())
        AND lower(v.periodo) >= $1 AND lower(v.periodo) < $2
        AND ($3::uuid IS NULL OR v.unidade_id = $3)
        AND ($4::text IS NULL OR p.especialidade ILIKE $4)
@@ -165,6 +167,27 @@ export async function desmarcarMinha(req: Requisicao, agendamentoId: unknown, mo
       await registrarAuditoria(tx, { acao: "agenda.desmarcar", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id, detalhes: { autoatendimento: true }, ip: req.ip });
     }),
   );
+}
+
+/** O cidadão confirma que vai (opcional; quem não confirma continua com a consulta). */
+export async function confirmarMinha(req: Requisicao, agendamentoId: unknown): Promise<void> {
+  const id = validar(uuid, agendamentoId);
+  await executar(() =>
+    comoCidadao(req, async (tx, vinculoId) => {
+      await garantirQueEhDoCidadao(tx, id, vinculoId);
+      await confirmar(tx, id);
+      await registrarAuditoria(tx, { acao: "agenda.confirmar", modulo: "agendamento", objetoTipo: "agendamento", objetoId: id, detalhes: { autoatendimento: true }, ip: req.ip });
+    }),
+  );
+}
+
+async function confirmar(tx: Conexao, id: string): Promise<void> {
+  const r = await tx.query(
+    `UPDATE app.agendamento a SET estado = 'confirmada'
+     FROM app.vaga v WHERE v.id = a.vaga_id AND a.id = $1 AND a.estado = 'marcada' AND lower(v.periodo) > now()`,
+    [id],
+  );
+  if (r.rowCount !== 1) throw new ErroAgendamento("ja_confirmada");
 }
 
 export async function remarcarMinha(req: Requisicao, agendamentoId: unknown, novaVagaId: unknown): Promise<string> {
@@ -257,6 +280,17 @@ export async function remarcarPelaUnidade(req: Requisicao, agendamentoId: unknow
   );
 }
 
+/** A recepção registra a confirmação dada por telefone ou no balcão. */
+export async function confirmarPelaUnidade(req: Requisicao, agendamentoId: unknown): Promise<void> {
+  const id = validar(uuid, agendamentoId);
+  await executar(() =>
+    comPermissaoNaUnidade(req, "agenda.marcar", (tx) => unidadeDaConsulta(tx, id), async (tx) => {
+      await confirmar(tx, id);
+      await registrarAuditoria(tx, { acao: "agenda.confirmar", modulo: "recepcao", objetoTipo: "agendamento", objetoId: id, ip: req.ip });
+    }),
+  );
+}
+
 const ESTADOS_RECEPCAO = { presente: "recepcao.checkin", atendida: "recepcao.fechar_agenda", faltou: "recepcao.fechar_agenda" } as const;
 
 /** Check-in, atendida e falta. A máquina de estados do banco recusa saltos inválidos. */
@@ -288,6 +322,8 @@ export interface ItemAgenda {
   estado_vaga: string;
   estado_consulta: string | null;
   cidadao_vinculo_id: string | null;
+  /** Vaga livre reservada para alguém da lista de espera até esta hora. */
+  oferecida_ate: Date | null;
 }
 
 /** Agenda de um dia numa unidade. Não traz dados pessoais do cidadão; o nome vem por função própria. */
@@ -298,7 +334,8 @@ export async function agendaDoDia(req: Requisicao, unidadeId: unknown, dia: unkn
     const r = await tx.query<ItemAgenda>(
       `SELECT a.id AS agendamento_id, v.id AS vaga_id, lower(v.periodo) AS inicio, upper(v.periodo) AS fim,
               p.nome_exibicao AS profissional, v.estado AS estado_vaga, a.estado AS estado_consulta,
-              a.cidadao_vinculo_id
+              a.cidadao_vinculo_id,
+              (SELECT o.expira_em FROM app.oferta o WHERE o.vaga_id = v.id AND o.estado = 'ativa' AND o.expira_em > now()) AS oferecida_ate
        FROM app.vaga v
        JOIN app.profissional p ON p.id = v.profissional_id
        JOIN app.tenant t ON t.id = v.tenant_id
@@ -366,6 +403,8 @@ export async function criarEscala(req: Requisicao, dados: unknown): Promise<{ es
       const escalaId = e.rows[0]!.id;
       const g = await tx.query<{ criadas: number; conflitos: number }>("SELECT * FROM app.vagas_gerar($1, $2)", [escalaId, d.gerarAte]);
       const { criadas, conflitos } = g.rows[0]!;
+      // Quem está na lista de espera recebe primeiro as vagas novas que combinam com o pedido.
+      if (criadas > 0) await tx.query("SELECT app.espera_distribuir(50)");
       await registrarAuditoria(tx, {
         acao: "escala.criar",
         modulo: "agendamento",
