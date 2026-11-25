@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { municipioAtual, sessaoAtual } from "@/lib/web/requisicao";
 import { comMunicipio } from "@/lib/db/contexto";
+import { versaoDaLogomarca } from "@/lib/gestao/identidade";
 
 // A CSP usa nonce por requisição; páginas estáticas não recebem o nonce, então tudo é dinâmico.
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 export default async function Layout({ children }: { children: ReactNode }) {
   const municipio = await municipioAtual();
   const sessao = municipio ? await sessaoAtual() : null;
+  const versaoLogo = municipio ? await versaoDaLogomarca(municipio.id) : null;
   // Só mostra o menu da equipe para quem tem vínculo de equipe ou gestão neste município.
   const daEquipe =
     sessao?.tenantId === municipio?.id && municipio && sessao
@@ -29,7 +31,11 @@ export default async function Layout({ children }: { children: ReactNode }) {
         <a className="pular" href="#conteudo">Pular para o conteúdo</a>
         <header className="topo">
           <div className="faixa">
-            <strong>Consulta Fácil{municipio ? ` · ${municipio.nome}` : ""}</strong>
+            <strong>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {versaoLogo !== null && <img className="logo-topo" src={`/marca?v=${versaoLogo}`} alt="" />}
+              Consulta Fácil{municipio ? ` · ${municipio.nome}` : ""}
+            </strong>
             {municipio && (
               <nav aria-label="Principal">
                 {sessao ? (

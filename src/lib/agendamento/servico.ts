@@ -422,6 +422,10 @@ async function montarComprovante(tx: Conexao, id: string, req: Requisicao): Prom
   if (!c) throw new ErroAgendamento("consulta_inexistente");
   const nome = await tx.query<{ nome: string }>("SELECT nome FROM app.nomes_de_vinculos(ARRAY[$1]::uuid[])", [c.cidadao_vinculo_id]);
 
+  const logo = await tx.query<{ content_type: "image/png" | "image/jpeg"; dados: Buffer }>(
+    `SELECT a.content_type, a.dados FROM app.identidade_visual iv
+     JOIN app.arquivo a ON a.tenant_id = iv.tenant_id AND a.chave = iv.logo_chave`,
+  );
   const codigo = codigoDoComprovante(id);
   // Primeira emissão grava o hash do código; a segunda via reaproveita (o código é o mesmo).
   const novo = await tx.query(
@@ -447,6 +451,7 @@ async function montarComprovante(tx: Conexao, id: string, req: Requisicao): Prom
       codigo,
       endereco: enderecoDeValidacao(c.slug, codigo),
       emitidoEm: new Date(),
+      logo: logo.rows[0] ? { contentType: logo.rows[0].content_type, dados: logo.rows[0].dados } : null,
     },
   };
 }

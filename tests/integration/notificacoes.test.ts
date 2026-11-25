@@ -39,6 +39,9 @@ beforeAll(async () => {
     profissionalId: profissional, unidadeId: unidade, diaSemana: new Date(`${dia}T12:00:00Z`).getUTCDay(),
     horaInicio: "13:00", horaFim: "14:00", duracaoMin: 30, vigenciaInicio: dia, vigenciaFim: dia, gerarAte: dia,
   });
+  // A fila é global (o worker atende todos os municípios). Avisos pendentes deixados por outros
+  // arquivos de teste ocupariam o lote de 20 e tirariam os deste arquivo, conforme a ordem de execução.
+  await admin.query("UPDATE app.notificacao SET estado = 'enviada' WHERE estado = 'pendente' AND tenant_id <> $1", [municipio]);
 });
 
 afterAll(async () => {
