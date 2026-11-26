@@ -44,7 +44,9 @@ npm run lint && npm run typecheck && npm test && npm run build
 | `src/lib/security/` | cifra de campo, índice cego, senhas, TOTP, tokens |
 | `src/middleware.ts` | CSP com nonce, município pelo subdomínio |
 | `src/lib/http/`, `src/lib/exportacao/`, `src/lib/arquivos/` | respostas projetadas, exportação mascarada, upload seguro |
-| `docs/seguranca/` | política de segurança da informação e matriz de barreiras contra vazamento |
+| `docs/seguranca/` | política de segurança da informação, matriz de barreiras contra vazamento, revisão pré-pentest e registros de incidente |
+| `docs/operacao/` | ciclo de vida do município, incidentes, restauração, migrações em produção, teste de carga |
+| `docs/suporte.md` | procedimentos de suporte para recepção e gestores |
 | `docs/arquitetura.md` | decisões de arquitetura |
 
 ## Infraestrutura

@@ -19,7 +19,9 @@
     "db:app-password": "tsx scripts/set-app-password.ts",
     "db:seed": "tsx scripts/seed.ts",
     "worker": "tsx scripts/worker.ts",
-    "db:predeploy": "npm run db:migrate && npm run db:app-password"
+    "db:predeploy": "npm run db:migrate && npm run db:app-password",
+    "municipio": "tsx scripts/municipio.ts",
+    "carga": "tsx scripts/carga.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.2",
