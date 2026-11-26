@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { municipioAtual, sessaoAtual } from "@/lib/web/requisicao";
+import { municipioAtual, sessaoAtual, situacaoDoMunicipioInativo, type SituacaoMunicipio } from "@/lib/web/requisicao";
 import { comMunicipio } from "@/lib/db/contexto";
 import { versaoDaLogomarca } from "@/lib/gestao/identidade";
 
@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 
 export default async function Layout({ children }: { children: ReactNode }) {
   const municipio = await municipioAtual();
+  const inativo = municipio ? null : await situacaoDoMunicipioInativo();
   const sessao = municipio ? await sessaoAtual() : null;
   const versaoLogo = municipio ? await versaoDaLogomarca(municipio.id) : null;
   // Só mostra o menu da equipe para quem tem vínculo de equipe ou gestão neste município.
@@ -34,7 +35,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
             <strong>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {versaoLogo !== null && <img className="logo-topo" src={`/marca?v=${versaoLogo}`} alt="" />}
-              Consulta Fácil{municipio ? ` · ${municipio.nome}` : ""}
+              Consulta Fácil{municipio ? ` · ${municipio.nome}` : inativo ? ` · ${inativo.nome}` : ""}
             </strong>
             {municipio && (
               <nav aria-label="Principal">
@@ -59,8 +60,23 @@ export default async function Layout({ children }: { children: ReactNode }) {
             )}
           </div>
         </header>
-        <main id="conteudo">{children}</main>
+        <main id="conteudo">{inativo ? <AvisoInativo situacao={inativo} /> : children}</main>
       </body>
     </html>
+  );
+}
+
+/** Município suspenso ou em encerramento: nada do sistema funciona por este endereço. */
+function AvisoInativo({ situacao }: { situacao: SituacaoMunicipio }) {
+  return (
+    <>
+      <h1>Agendamento on-line indisponível</h1>
+      <p className="aviso" role="status">
+        {situacao.estado === "suspenso"
+          ? `O agendamento on-line de ${situacao.nome} está temporariamente suspenso.`
+          : `O agendamento on-line de ${situacao.nome} foi encerrado neste endereço.`}
+      </p>
+      <p>Suas consultas já marcadas continuam registradas. Para marcar, desmarcar ou tirar dúvidas, procure a recepção da sua unidade de saúde.</p>
+    </>
   );
 }

@@ -22,6 +22,23 @@ export async function municipioAtual(): Promise<Municipio | null> {
   return r.rows[0] ?? null;
 }
 
+export interface SituacaoMunicipio {
+  nome: string;
+  estado: "suspenso" | "encerrando" | "encerrado";
+}
+
+/**
+ * Município do subdomínio que existe mas não está ativo (suspenso ou em encerramento): a página
+ * mostra um aviso no lugar do conteúdo. Município ainda em provisionamento não aparece.
+ */
+export async function situacaoDoMunicipioInativo(): Promise<SituacaoMunicipio | null> {
+  const h = await headers();
+  const slug = slugDoHost(h.get("host")) ?? slugDoHost(h.get("x-forwarded-host"));
+  if (!slug) return null;
+  const r = await obterPool().query<SituacaoMunicipio>("SELECT nome, estado FROM app.municipio_situacao($1)", [slug]);
+  return r.rows[0] ?? null;
+}
+
 /**
  * IP do cliente. No Railway a borda acrescenta o IP real ao fim de X-Forwarded-For; os valores
  * à esquerda vêm do cliente e podem ser forjados, então usamos o último.
