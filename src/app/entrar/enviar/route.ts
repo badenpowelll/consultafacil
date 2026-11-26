@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { entrar } from "@/lib/auth/login";
 import { COOKIE_SESSAO, definirMunicipio, opcoesCookieSessao } from "@/lib/auth/sessao";
+import { conferirFormulario } from "@/lib/security/formulario";
+import { logInfo } from "@/lib/log";
 import { ipDaRequisicao, municipioAtual } from "@/lib/web/requisicao";
 
 /**
@@ -19,6 +21,12 @@ export async function POST(req: Request) {
   if (!municipio) return para("/");
 
   const f = await req.formData();
+  // Robôs: selo ausente/forjado/vencido ou campo-isca preenchido. Mesma resposta de credencial errada.
+  const robo = conferirFormulario(f, 0);
+  if (robo) {
+    logInfo({ evento: "seguranca.formulario_recusado", rota: "entrar", motivo: robo });
+    return para("/entrar?erro=credenciais");
+  }
   const resultado = await entrar({
     cpf: String(f.get("cpf") ?? "").slice(0, 20),
     senha: String(f.get("senha") ?? "").slice(0, 200),

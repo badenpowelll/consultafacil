@@ -2,11 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { pedirRecuperacao, redefinirSenha, type FinalidadeAcesso } from "@/lib/auth/recuperacao";
+import { conferirFormulario } from "@/lib/security/formulario";
+import { logInfo } from "@/lib/log";
 import { ipDaRequisicao, municipioAtual } from "@/lib/web/requisicao";
 
 export async function acaoPedirRecuperacao(f: FormData): Promise<void> {
   const municipio = await municipioAtual();
   if (!municipio) redirect("/");
+  const robo = conferirFormulario(f, 3000);
+  if (robo) {
+    // Resposta igual à de sucesso: o robô não aprende nada.
+    logInfo({ evento: "seguranca.formulario_recusado", rota: "recuperar", motivo: robo });
+    redirect("/recuperar?enviado=1");
+  }
   const r = await pedirRecuperacao(municipio.id, String(f.get("cpf") ?? "").slice(0, 20), await ipDaRequisicao());
   redirect(r === "limite" ? "/recuperar?erro=limite" : "/recuperar?enviado=1");
 }

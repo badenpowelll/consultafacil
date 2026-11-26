@@ -79,6 +79,7 @@ export interface Painel {
 
 /** Unidades que a pessoa pode ver; com uma unidade escolhida, só ela (se permitida). */
 async function escopo(req: Requisicao, permissao: string, unidadeId: string | null): Promise<{ todas: Opcao[]; ids: string[] }> {
+  if (req.sessao && !req.sessao.mfaVerificado) throw new AcessoNegado("sem_mfa");
   const todas = await unidadesComPermissao(req, permissao);
   if (todas.length === 0) throw new AcessoNegado("sem_permissao");
   if (!unidadeId) return { todas, ids: todas.map((u) => u.id) };

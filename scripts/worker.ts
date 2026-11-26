@@ -7,6 +7,7 @@ import { encerrarPool } from "@/lib/db/pool";
 import { processarLote } from "@/lib/notificacoes/worker";
 import { transporteDoAmbiente } from "@/lib/notificacoes/transporte";
 import { executarRotinas } from "@/lib/notificacoes/rotina";
+import { vigiarSeguranca } from "@/lib/seguranca/vigia";
 
 const INTERVALO_ROTINAS_MS = 60_000;
 
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
         return { ofertas: 0, lembretes: 0 };
       });
       if (r.ofertas + r.lembretes > 0) console.warn(`rotinas: ${r.ofertas} ofertas, ${r.lembretes} lembretes`);
+      await vigiarSeguranca().catch(() => console.error("falha na vigia de segurança; nova tentativa no próximo ciclo"));
     }
     const r = await processarLote(transporte).catch(() => {
       console.error("falha ao processar lote; nova tentativa em instantes");

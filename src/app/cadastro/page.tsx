@@ -1,3 +1,4 @@
+import { CamposAntiRobo } from "@/app/campos-anti-robo";
 import { acaoCadastrar } from "./acoes";
 
 const CAMPOS: Record<string, string> = {
@@ -23,13 +24,15 @@ export default async function Cadastro({ searchParams }: { searchParams: Promise
       </>
     );
   }
-  const problemas = erro === "limite" ? null : erro?.split(",").map((c) => CAMPOS[c]).filter(Boolean);
+  const problemas = erro === "limite" || erro === "verificacao" ? null : erro?.split(",").map((c) => CAMPOS[c]).filter(Boolean);
   return (
     <>
       <h1>Criar cadastro</h1>
       {erro === "limite" && <p className="erro" role="alert">Muitos cadastros a partir desta conexão. Tente mais tarde.</p>}
+      {erro === "verificacao" && <p className="erro" role="alert">Não conseguimos confirmar o envio. Recarregue a página, preencha de novo e envie.</p>}
       {problemas && problemas.length > 0 && <p className="erro" role="alert">Confira: {problemas.join(", ")}.</p>}
       <form className="campos" action={acaoCadastrar}>
+        <CamposAntiRobo />
         <label>Nome completo<input name="nome" autoComplete="name" required maxLength={160} /></label>
         <label>CPF<input name="cpf" inputMode="numeric" required maxLength={14} /></label>
         <label>Data de nascimento<input name="nascimento" type="date" autoComplete="bday" required /></label>

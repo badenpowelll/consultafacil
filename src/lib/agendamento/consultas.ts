@@ -11,7 +11,7 @@ export interface Opcao {
 /** Unidades onde a conta tem a permissão. minhas_permissoes já exige vínculo e município ativos. */
 export async function unidadesComPermissao(req: Requisicao, permissao: string): Promise<Opcao[]> {
   const s = req.sessao;
-  if (!s?.tenantId || s.tenantId !== req.tenantDaUrl) return [];
+  if (!s?.tenantId || s.tenantId !== req.tenantDaUrl || !s.mfaVerificado) return [];
   return comMunicipio({ tenantId: s.tenantId, contaId: s.contaId }, async (tx) =>
     (await tx.query<Opcao>(
       `SELECT u.id, u.nome FROM app.unidade u

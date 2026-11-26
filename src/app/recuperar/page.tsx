@@ -1,3 +1,4 @@
+import { CamposAntiRobo } from "@/app/campos-anti-robo";
 import { acaoPedirRecuperacao } from "./acoes";
 
 /** Pedir link de nova senha por e-mail. A resposta é a mesma para qualquer CPF. */
@@ -22,6 +23,7 @@ export default async function Recuperar({ searchParams }: { searchParams: Promis
       {erro === "limite" && <p className="erro" role="alert">Muitos pedidos seguidos. Aguarde uma hora e tente de novo.</p>}
       <p>Informe seu CPF. Enviaremos um link para o e-mail do seu cadastro.</p>
       <form className="campos" action={acaoPedirRecuperacao}>
+        <CamposAntiRobo />
         <label>CPF<input name="cpf" inputMode="numeric" autoComplete="username" required maxLength={14} /></label>
         <button type="submit">Enviar link</button>
       </form>

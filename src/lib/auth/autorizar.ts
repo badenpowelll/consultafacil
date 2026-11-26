@@ -20,7 +20,10 @@ export interface Pedido {
   tenantDaUrl: string;
   permissao: string;
   unidadeId?: string | null;
-  /** Ações administrativas e clínicas exigem MFA verificado na sessão. */
+  /**
+   * Mantido por compatibilidade: desde o reforço contra ataques automatizados, TODA ação da equipe
+   * exige MFA verificado na sessão (senha vazada ou adivinhada por robô não basta).
+   */
   exigeMfa?: boolean;
   /**
    * Para o cadastro do cidadão (que é do município, não de uma unidade): basta a permissão no
@@ -35,7 +38,7 @@ export async function comPermissao<T>(p: Pedido, trabalho: (tx: Conexao) => Prom
   if (!s.tenantId) throw new AcessoNegado("sem_municipio");
   // A sessão atua num município; uma URL de outro município não herda essa atuação.
   if (s.tenantId !== p.tenantDaUrl) throw new AcessoNegado("municipio_divergente");
-  if (p.exigeMfa && !s.mfaVerificado) throw new AcessoNegado("sem_mfa");
+  if (!s.mfaVerificado) throw new AcessoNegado("sem_mfa");
 
   return comMunicipio({ tenantId: s.tenantId, contaId: s.contaId }, async (tx) => {
     const r = p.qualquerUnidade
