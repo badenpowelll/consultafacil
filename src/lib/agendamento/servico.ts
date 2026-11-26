@@ -6,6 +6,7 @@ import type { SessaoValida } from "@/lib/auth/sessao";
 import { registrarAuditoria } from "@/lib/auditoria";
 import { ErroAgendamento, traduzirErroBanco } from "@/lib/agendamento/erros";
 import { obterPool } from "@/lib/db/pool";
+import { consumirLimite } from "@/lib/security/limites";
 import {
   codigoDoComprovante, enderecoDeValidacao, hashDoCodigo, normalizarCodigo, type DadosComprovante,
 } from "@/lib/agendamento/comprovante";
@@ -56,6 +57,12 @@ export async function comoCidadao<T>(req: Requisicao, trabalho: (tx: Conexao, vi
   });
 }
 
+/** Teto de volume por conta no autoatendimento (ver POLITICAS em security/limites). */
+async function limitarCidadao(req: Requisicao, politica: "buscaVagas" | "marcacao"): Promise<void> {
+  if (!req.sessao) throw new AcessoNegado("sem_sessao");
+  if (!(await consumirLimite(politica, req.sessao.contaId))) throw new ErroAgendamento("limite_uso");
+}
+
 export interface VagaLivre {
   id: string;
   inicio: Date;
@@ -94,6 +101,7 @@ async function buscarVagas(tx: Conexao, filtro: z.infer<typeof filtroVagas>): Pr
 
 export async function vagasParaCidadao(req: Requisicao, filtro: unknown): Promise<VagaLivre[]> {
   const f = validar(filtroVagas, filtro);
+  await limitarCidadao(req, "buscaVagas");
   return comoCidadao(req, (tx) => buscarVagas(tx, f));
 }
 
@@ -106,6 +114,7 @@ function dependenteOpcional(valor: unknown): string | null {
 export async function marcarParaMim(req: Requisicao, vagaId: unknown, dependenteId?: unknown): Promise<string> {
   const vaga = validar(uuid, vagaId);
   const dependente = dependenteOpcional(dependenteId);
+  await limitarCidadao(req, "marcacao");
   return executar(() =>
     comoCidadao(req, async (tx, vinculoId) => {
       const r = await tx.query<{ id: string }>("SELECT app.agendamento_marcar($1, $2, NULL, $3) AS id", [vaga, vinculoId, dependente]);
@@ -160,6 +169,7 @@ async function garantirQueEhDoCidadao(tx: Conexao, agendamentoId: string, vincul
 export async function desmarcarMinha(req: Requisicao, agendamentoId: unknown, motivoTexto: unknown): Promise<void> {
   const id = validar(uuid, agendamentoId);
   const m = validar(motivo, motivoTexto);
+  await limitarCidadao(req, "marcacao");
   await executar(() =>
     comoCidadao(req, async (tx, vinculoId) => {
       await garantirQueEhDoCidadao(tx, id, vinculoId);
@@ -193,6 +203,7 @@ async function confirmar(tx: Conexao, id: string): Promise<void> {
 export async function remarcarMinha(req: Requisicao, agendamentoId: unknown, novaVagaId: unknown): Promise<string> {
   const id = validar(uuid, agendamentoId);
   const vaga = validar(uuid, novaVagaId);
+  await limitarCidadao(req, "marcacao");
   return executar(() =>
     comoCidadao(req, async (tx, vinculoId) => {
       await garantirQueEhDoCidadao(tx, id, vinculoId);

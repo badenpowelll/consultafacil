@@ -15,6 +15,10 @@ export const POLITICAS = {
   revelarDocumento: { tentativas: 20, janelaSegundos: 24 * 60 * 60 },
   recuperarSenhaIp: { tentativas: 10, janelaSegundos: 60 * 60 },
   recuperarSenhaCpf: { tentativas: 3, janelaSegundos: 60 * 60 },
+  // Autoatendimento do cidadão: uma pessoa real busca algumas dezenas de vezes e marca poucas
+  // consultas por hora. Robô que raspa a agenda ou prende vagas esbarra aqui (bloqueio progressivo).
+  buscaVagas: { tentativas: 120, janelaSegundos: 60 * 60 },
+  marcacao: { tentativas: 15, janelaSegundos: 60 * 60 },
 } as const;
 
 export type Politica = keyof typeof POLITICAS;

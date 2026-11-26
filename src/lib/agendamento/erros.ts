@@ -30,6 +30,7 @@ export const MENSAGENS = {
   sem_tempo_para_oferta: "Não há tempo para oferecer esta vaga.",
   oferta_invalida: "Oferta inválida.",
   ja_confirmada: "Esta consulta não está aguardando confirmação.",
+  limite_uso: "Muitas ações seguidas nesta conta. Aguarde alguns minutos e tente de novo.",
 } as const;
 
 export type CodigoErro = keyof typeof MENSAGENS;

@@ -5,10 +5,17 @@ import { cadastrarCidadao } from "@/lib/cidadao/cadastro";
 import { comConta } from "@/lib/db/contexto";
 import { ipDaRequisicao, municipioAtual } from "@/lib/web/requisicao";
 import { createHash } from "node:crypto";
+import { conferirFormulario } from "@/lib/security/formulario";
+import { logInfo } from "@/lib/log";
 
 export async function acaoCadastrar(formulario: FormData): Promise<void> {
   const municipio = await municipioAtual();
   if (!municipio) redirect("/");
+  const robo = conferirFormulario(formulario, 3000);
+  if (robo) {
+    logInfo({ evento: "seguranca.formulario_recusado", rota: "cadastro", motivo: robo });
+    redirect("/cadastro?erro=verificacao");
+  }
   // Limite por IP: cadastro em massa por robôs.
   const chave = `cadastro:ip:${createHash("sha256").update(await ipDaRequisicao()).digest("base64url").slice(0, 32)}`;
   const permitido = await comConta(null, async (tx) =>

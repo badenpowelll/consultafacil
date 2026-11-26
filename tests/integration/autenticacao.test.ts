@@ -83,9 +83,12 @@ describe("autorização por permissão e unidade", () => {
     const { contaId } = await criarPessoaEConta();
     const vinculo = await vincular(municipioB, contaId, "equipe");
     await atribuirPerfil(municipioB, vinculo, ["recepcao.checkin"], unidade1);
-    const token = await criarSessao(contaId, false);
+    const token = await criarSessao(contaId, true);
     await definirMunicipio(token, municipioB);
     const sessao = await validarSessao(token);
+    const semMfa = await criarSessao(contaId, false);
+    await definirMunicipio(semMfa, municipioB);
+    const sessaoSemMfa = await validarSessao(semMfa);
 
     const pedir = (permissao: string, unidadeId: string | null, tenantDaUrl = municipioB) =>
       comPermissao({ sessao, tenantDaUrl, permissao, unidadeId }, async () => "ok");
@@ -94,7 +97,8 @@ describe("autorização por permissão e unidade", () => {
     await expect(pedir("recepcao.checkin", unidade2)).rejects.toThrow(AcessoNegado);
     await expect(pedir("agenda.marcar", unidade1)).rejects.toThrow(/sem_permissao/);
     await expect(pedir("recepcao.checkin", unidade1, municipioA)).rejects.toThrow(/municipio_divergente/);
-    await expect(comPermissao({ sessao, tenantDaUrl: municipioB, permissao: "recepcao.checkin", unidadeId: unidade1, exigeMfa: true }, async () => 1)).rejects.toThrow(/sem_mfa/);
+    // Toda ação da equipe exige MFA, mesmo sem pedir explicitamente.
+    await expect(comPermissao({ sessao: sessaoSemMfa, tenantDaUrl: municipioB, permissao: "recepcao.checkin", unidadeId: unidade1 }, async () => 1)).rejects.toThrow(/sem_mfa/);
   });
 
   it("gestor recebe permissões administrativas, mas não clínicas", async () => {

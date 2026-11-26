@@ -1,6 +1,7 @@
+import { CamposAntiRobo } from "@/app/campos-anti-robo";
 const MENSAGENS: Record<string, string> = {
   credenciais: "CPF, senha ou código não conferem.",
-  limite: "Muitas tentativas. Aguarde 15 minutos e tente de novo.",
+  limite: "Muitas tentativas. O acesso foi pausado por um tempo, que aumenta a cada nova sequência de erros. Tente mais tarde ou recupere a senha.",
   mfa_necessario: "Sua conta usa verificação em duas etapas. Informe também o código do aplicativo.",
   sem_vinculo: "Seu cadastro neste município ainda aguarda aprovação da unidade de saúde.",
 };
@@ -13,6 +14,7 @@ export default async function Entrar({ searchParams }: { searchParams: Promise<{
       <h1>Entrar</h1>
       {mensagem && <p className="erro" role="alert">{mensagem}</p>}
       <form className="campos" action="/entrar/enviar" method="post">
+        <CamposAntiRobo />
         <label>
           CPF
           <input name="cpf" inputMode="numeric" autoComplete="username" required maxLength={14} />

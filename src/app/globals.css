@@ -90,3 +90,6 @@ label.opcao { display: inline-flex; gap: 6px; align-items: center; margin-right:
 /* Painel */
 .numero-grande { font-size: 2rem; font-weight: 700; line-height: 1.1; }
 .rolagem { overflow-x: auto; }
+
+/* Campo-isca dos formulários públicos: fora da tela, sem foco e escondido de leitores de tela. */
+.isca { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }

@@ -16,3 +16,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # As ações ficam fixadas por SHA de commit (tag pode ser movida por quem invadir o repositório
+    # da ação); o Dependabot propõe o novo SHA, e a revisão confere o changelog antes do merge.
+    cooldown:
+      default-days: 7

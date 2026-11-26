@@ -12,8 +12,13 @@ Resumo; o detalhe está em [`docs/seguranca/politica-seguranca-informacao.md`](d
 
 - Isolamento entre municípios no banco (RLS forçado), testado no CI.
 - Aplicação conecta com papel sem privilégios de dono e sem acesso direto a identidades.
-- Sessões opacas e revogáveis; Argon2id; MFA com anti-reuso; limites de tentativa.
+- Sessões opacas e revogáveis; Argon2id; MFA obrigatório para toda a equipe, com anti-reuso.
+- Limites de tentativa com bloqueio progressivo (login, recuperação, cadastro, buscas, marcação, exportação).
+- Selo anti-robô e campo-isca nos formulários públicos; vigia de volume anormal no worker.
 - CPF, CNS e segredos de MFA cifrados (AES-256-GCM) com índice cego para busca.
 - Auditoria somente inserção, sem dado pessoal em claro.
-- CSP com nonce e cabeçalhos de segurança; CodeQL, gitleaks, `npm audit` e Dependabot.
+- CSP com nonce e cabeçalhos de segurança; CodeQL, gitleaks, `npm audit`, Dependabot e ações do CI fixadas por SHA.
+- Sem recurso de modelo de linguagem no produto, logo sem superfície de injeção de prompt.
+
+Nenhum sistema é 100% seguro: estas camadas encarecem e expõem o ataque, e o pentest externo antes de dado real continua obrigatório.
 - Barreiras contra vazamento em cada caminho de saída (API, erros, logs, exportações, uploads, links, cache): ver [`docs/seguranca/matriz-vazamento.md`](docs/seguranca/matriz-vazamento.md).

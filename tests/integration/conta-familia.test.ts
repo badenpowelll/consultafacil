@@ -104,7 +104,7 @@ beforeAll(async () => {
   const r = await criarPessoaEConta();
   const vr = await vincular(A, r.contaId, "equipe");
   await atribuirPerfil(A, vr, ["recepcao.assistido", "cidadao.ver", "cidadao.aprovar", "agenda.ver", "agenda.marcar"], unidadeA);
-  recepcaoA = { req: await requisicao(r.contaId, A, false), contaId: r.contaId };
+  recepcaoA = { req: await requisicao(r.contaId, A), contaId: r.contaId };
   const s = await criarPessoaEConta();
   await vincular(A, s.contaId, "equipe");
   semPermissaoA = await requisicao(s.contaId, A);
