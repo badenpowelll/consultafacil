@@ -85,7 +85,7 @@ Enquanto `HOMOLOGACAO = true` em `.railway/railway.ts`, o Railway publica um **a
 - o endereço gerado pelo Railway abre direto esse município (`CF_MUNICIPIO_UNICO=demo`);
 - e-mails não saem (o worker está desligado): ficam na fila, e o resto funciona.
 
-Exportações exigem verificação em duas etapas: ative em "Equipe → Segurança da conta" com um aplicativo autenticador.
+A área da equipe só abre com verificação em duas etapas. No primeiro acesso da gestora e da médica, entre, vá em **Conta › Segurança**, ative com um aplicativo autenticador (Google Authenticator, Microsoft Authenticator, Aegis…), saia e entre de novo informando o código.
 
 **Antes de qualquer dado real:** troque `HOMOLOGACAO` para `false`, aplique (`railway config apply`) e use um **banco novo** (remova e recrie o serviço `postgres`, ou crie outro ambiente). As contas de teste têm senha conhecida e não podem existir em produção. Apague também `CF_SEED_SENHA` do painel.
 
