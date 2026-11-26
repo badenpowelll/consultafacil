@@ -37,6 +37,14 @@ Sessão → município escolhido (precisa coincidir com o subdomínio) → vínc
 - **Lista de espera (`espera`, `oferta`).** O cidadão (ou a recepção, por ele ou por um dependente) entra na fila de uma especialidade, com unidade e turno opcionais; até 3 listas por pessoa. Quando uma vaga abre (desmarque, remarcação, escala nova, oferta recusada ou vencida), `app.oferecer_vaga`/`app.espera_distribuir` a oferecem ao primeiro compatível (prioridade marcada pela equipe primeiro, depois ordem de entrada). A vaga fica só para essa pessoa por 2 horas contadas das 7h às 20h (`app.prazo_oferta`), terminando no máximo 2 horas antes da consulta. A disponibilidade é calculada na consulta: oferta vencida já conta como livre, sem depender de rotina. Ninguém marca vaga oferecida a outra pessoa (gatilho `agendamento_oferta`), e marcar a especialidade por outro caminho tira a pessoa da fila.
 - **Rotinas do worker.** A cada minuto, para cada município ativo: `espera_distribuir` (ofertas pendentes) e `lembretes_gerar` (lembrete da véspera, das 9h às 20h, uma vez por consulta por índice único). Nada desmarca consulta por falta de resposta: quem não confirmou ou ficou sem aviso aparece em "Contatos pendentes" para a recepção ligar.
 
+## Painel e exportação do gestor
+
+`src/lib/gestao/indicadores.ts` calcula, por período (datas locais, até 366 dias), unidade e especialidade: vagas, ocupação, ociosas (horários passados sem ninguém), atendidos, faltas (absenteísmo = faltas ÷ (faltas + atendidos)), cancelamentos e a mediana de dias entre marcar e a consulta, além da demanda atual da lista de espera. Só números: nenhum dado pessoal sai do painel. Cada pessoa vê as unidades em que tem `gestao.painel`.
+
+A exportação em CSV (indicadores e consultas do período) passa por `exportar()`: `gestao.exportar` com MFA, limite por hora, teto de 5.000 linhas, colunas tipadas e auditoria com o número da exportação no rodapé. O CSV de consultas não traz nome nem documento do paciente.
+
+Procedimentos de atendimento e escalonamento: `docs/suporte.md`.
+
 ## Comprovante de agendamento
 
 O cidadão baixa o comprovante em PDF em "Minhas consultas"; a equipe com permissão de ver a agenda da unidade também emite, para imprimir na recepção. O PDF traz um código de validação e um QR code que levam à página pública `/validar/<código>` no subdomínio do município.

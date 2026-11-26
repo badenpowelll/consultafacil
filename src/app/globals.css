@@ -86,3 +86,7 @@ label.marcar { display: flex; gap: 8px; align-items: center; font-weight: normal
 /* Lista de espera */
 .destaque-borda { border: 2px solid var(--primaria, #0b5cad); }
 label.opcao { display: inline-flex; gap: 6px; align-items: center; margin-right: 16px; font-weight: normal; }
+
+/* Painel */
+.numero-grande { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.rolagem { overflow-x: auto; }
