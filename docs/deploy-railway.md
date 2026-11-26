@@ -53,6 +53,7 @@ Gere cada valor no seu computador e cole direto no painel:
 | `CF_CHAVES_DADOS` | `1:` seguido de `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `CF_CHAVE_INDICE` | outro valor gerado com o mesmo comando (nunca igual à chave de dados) |
 | `CF_DOMINIO_BASE` | o domínio do site (veja o passo 4) |
+| `CF_SEED_SENHA` | só no ambiente de teste: a senha das contas fictícias de demonstração (escolha uma frase com 4 palavras ou mais) |
 
 `NODE_ENV`, `DATABASE_URL_ADMIN` e as demais já vêm do arquivo. Guarde `CF_CHAVES_DADOS` e `CF_CHAVE_INDICE` também num cofre de senhas: sem elas, CPF e CNS cifrados não podem ser lidos.
 
@@ -60,7 +61,7 @@ Ao salvar, o Railway faz um novo deploy.
 
 ### 4. Domínio
 
-- Para testar: `site` → Settings → Networking → **Generate Domain**.
+- Para testar: `site` → Settings → Networking → **Generate Domain**. Copie o endereço gerado (algo como `consulta-facil-production.up.railway.app`, sem `https://`) para `CF_DOMINIO_BASE`. Como esse endereço não aceita subdomínios, o ambiente de teste abre direto o Município de Demonstração.
 - Para os municípios (cada um no seu subdomínio, como `mossoro.seudominio.gov.br`): adicione um domínio próprio **curinga** (`*.seudominio.gov.br`) em Networking, crie os registros DNS que o Railway indicar e ponha `CF_DOMINIO_BASE=seudominio.gov.br`.
 
 ### 5. Conferências no painel
@@ -68,6 +69,25 @@ Ao salvar, o Railway faz um novo deploy.
 - `site` → Settings → Source: ramo `main` e **Wait for CI** ligado.
 - `postgres` → Backups: ligue backups agendados (a política pede teste de restauração trimestral).
 - Todos os serviços na mesma região.
+
+## Ambiente de teste (homologação)
+
+Enquanto `HOMOLOGACAO = true` em `.railway/railway.ts`, o Railway publica um **ambiente de teste com dados fictícios**:
+
+- a cada publicação, o pré-deploy (`npm run db:homologacao`) aplica as migrações e cria ou atualiza o "Município de Demonstração", uma unidade, uma médica com agenda de segunda a sexta (7h às 11h, 3 semanas à frente) e três contas de teste, todas com a senha de `CF_SEED_SENHA`:
+
+  | Conta | CPF fictício | Para testar |
+  |---|---|---|
+  | Gestora (também Super Admin) | 529.982.247-25 | área da equipe, painel, perfis, auditoria, escalas |
+  | Médica | 111.444.777-35 | agenda do dia |
+  | Cidadã | 390.533.447-05 | marcar, desmarcar, lista de espera, família, comprovante |
+
+- o endereço gerado pelo Railway abre direto esse município (`CF_MUNICIPIO_UNICO=demo`);
+- e-mails não saem (o worker está desligado): ficam na fila, e o resto funciona.
+
+Exportações exigem verificação em duas etapas: ative em "Equipe → Segurança da conta" com um aplicativo autenticador.
+
+**Antes de qualquer dado real:** troque `HOMOLOGACAO` para `false`, aplique (`railway config apply`) e use um **banco novo** (remova e recrie o serviço `postgres`, ou crie outro ambiente). As contas de teste têm senha conhecida e não podem existir em produção. Apague também `CF_SEED_SENHA` do painel.
 
 ## Depois
 

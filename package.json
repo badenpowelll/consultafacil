@@ -21,7 +21,8 @@
     "worker": "tsx scripts/worker.ts",
     "db:predeploy": "npm run db:migrate && npm run db:app-password",
     "municipio": "tsx scripts/municipio.ts",
-    "carga": "tsx scripts/carga.ts"
+    "carga": "tsx scripts/carga.ts",
+    "db:homologacao": "npm run db:predeploy && CF_PROCESSO=migracao tsx scripts/seed.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "2.2.2",

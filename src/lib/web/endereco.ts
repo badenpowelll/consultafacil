@@ -4,6 +4,8 @@ import { env } from "@/lib/env";
 /** Origem pública do município (subdomínio). Em desenvolvimento, http://<slug>.localhost:<porta>. */
 export function origemDoMunicipio(slug: string): string {
   const base = env().CF_DOMINIO_BASE.toLowerCase();
+  // Município único (ambiente de teste): o endereço é o próprio domínio base.
+  if (slug === process.env.CF_MUNICIPIO_UNICO && base !== "localhost") return `https://${base}`;
   return base === "localhost" ? `http://${slug}.localhost:${process.env.PORT ?? "3000"}` : `https://${slug}.${base}`;
 }
 
