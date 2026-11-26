@@ -19,7 +19,9 @@ function parar(mensagem: string): never {
 }
 
 async function main(): Promise<void> {
-  if (process.env.NODE_ENV === "production" || process.env.CF_AMBIENTE === "producao") {
+  // No Railway o ambiente de teste roda com NODE_ENV=production; só CF_AMBIENTE=homologacao libera.
+  const homologacao = process.env.CF_AMBIENTE === "homologacao";
+  if (process.env.CF_AMBIENTE === "producao" || (process.env.NODE_ENV === "production" && !homologacao)) {
     parar("Seed de dados fictícios não roda em produção");
   }
   const url = process.env.DATABASE_URL_ADMIN;
@@ -74,14 +76,19 @@ async function main(): Promise<void> {
        ON CONFLICT (tenant_id, vinculo_id) DO UPDATE SET ativo = true RETURNING id`,
       [tenantId, medico],
     );
-    // Segunda a sexta, 7h às 11h, consultas de 20 minutos, vagas para 3 semanas.
+    // Segunda a sexta, 7h às 11h, consultas de 20 minutos. Rodando de novo (a cada publicação no
+    // ambiente de teste), não duplica a escala: só estende as vagas até 3 semanas à frente.
     for (let dia = 1; dia <= 5; dia++) {
-      const e = await db.query<{ id: string }>(
+      const existente = await db.query<{ id: string }>(
+        "SELECT id FROM app.escala WHERE tenant_id = $1 AND profissional_id = $2 AND dia_semana = $3 AND ativa LIMIT 1",
+        [tenantId, prof.rows[0]!.id, dia],
+      );
+      const escalaId = existente.rows[0]?.id ?? (await db.query<{ id: string }>(
         `INSERT INTO app.escala (tenant_id, profissional_id, unidade_id, dia_semana, hora_inicio, hora_fim, duracao_min, vigencia_inicio)
          VALUES ($1, $2, $3, $4, '07:00', '11:00', 20, current_date) RETURNING id`,
         [tenantId, prof.rows[0]!.id, unidade, dia],
-      );
-      await db.query("SELECT * FROM app.vagas_gerar($1, current_date + 21)", [e.rows[0]!.id]);
+      )).rows[0]!.id;
+      await db.query("SELECT * FROM app.vagas_gerar($1, current_date + 21)", [escalaId]);
     }
     await db.query("COMMIT");
     console.warn(`seed concluído: município 'demo'. Gestora ${CPF_GESTORA}, médica ${CPF_MEDICO}, cidadã ${CPF_CIDADA}`);

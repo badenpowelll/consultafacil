@@ -19,6 +19,16 @@ const RAMO = "main";
 const COM_WORKER = false;
 
 /**
+ * Ambiente de TESTE (homologação), com dados fictícios: a cada publicação o pré-deploy recria o
+ * "Município de Demonstração" e as contas de teste (senha em CF_SEED_SENHA), e o endereço gerado
+ * pelo Railway abre direto esse município (CF_MUNICIPIO_UNICO), já que ele não aceita subdomínios.
+ *
+ * Antes de qualquer dado real: troque para false E use um banco novo (as contas de teste têm senha
+ * conhecida e não podem existir em produção). Passo a passo em docs/deploy-railway.md.
+ */
+const HOMOLOGACAO = true;
+
+/**
  * O processo da aplicação não pode carregar credenciais administrativas (ver src/lib/env.ts
  * e a política de segurança). Elas existem no serviço só para o comando de pré-deploy; o
  * `env -u` as retira do ambiente antes de o servidor subir.
@@ -28,19 +38,21 @@ const SEM_SEGREDOS_ADMIN = "env -u DATABASE_URL_ADMIN -u CF_APP_DB_PASSWORD -u C
 export default defineRailway(() => {
   const banco = postgres("postgres");
 
+  const ambiente = HOMOLOGACAO ? "homologacao" : "producao";
+
   const site = service("site", {
     source: github(REPOSITORIO, { branch: RAMO, checkSuites: true }),
     build: { builder: "RAILPACK", buildCommand: "npm run build" },
     // Migrações rodam fora do processo da aplicação, antes de a versão nova receber tráfego.
     // Se falharem, o deploy para e a versão anterior continua no ar.
-    preDeploy: ["npm run db:predeploy"],
+    preDeploy: [HOMOLOGACAO ? "npm run db:homologacao" : "npm run db:predeploy"],
     start: `${SEM_SEGREDOS_ADMIN} node_modules/.bin/next start -H 0.0.0.0`,
     healthcheck: "/api/health",
     healthcheckTimeout: 120,
     deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5, drainingSeconds: 20 },
     env: {
       NODE_ENV: "production",
-      CF_AMBIENTE: "producao",
+      CF_AMBIENTE: ambiente,
       NEXT_TELEMETRY_DISABLED: "1",
       CF_CHAVE_DADOS_ATIVA: "1",
       CF_SESSAO_OCIOSA_MIN: "30",
@@ -53,6 +65,7 @@ export default defineRailway(() => {
       CF_CHAVES_DADOS: preserve(),
       CF_CHAVE_INDICE: preserve(),
       CF_DOMINIO_BASE: preserve(),
+      ...(HOMOLOGACAO ? { CF_MUNICIPIO_UNICO: "demo", CF_SEED_SENHA: preserve() } : {}),
     },
   });
 
@@ -66,7 +79,7 @@ export default defineRailway(() => {
       deploy: { restartPolicyType: "ALWAYS", drainingSeconds: 20 },
       env: {
         NODE_ENV: "production",
-        CF_AMBIENTE: "producao",
+        CF_AMBIENTE: ambiente,
         CF_CHAVE_DADOS_ATIVA: "1",
         CF_EMAIL_TRANSPORTE: "resend",
         RESEND_API_KEY: preserve(),
@@ -76,6 +89,7 @@ export default defineRailway(() => {
         CF_CHAVES_DADOS: site.env.CF_CHAVES_DADOS,
         CF_CHAVE_INDICE: site.env.CF_CHAVE_INDICE,
         CF_DOMINIO_BASE: site.env.CF_DOMINIO_BASE,
+        ...(HOMOLOGACAO ? { CF_MUNICIPIO_UNICO: "demo" } : {}),
       },
     });
     recursos.push(worker);
